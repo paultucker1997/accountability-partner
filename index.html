@@ -182,6 +182,12 @@
     border: 1px solid var(--line);
   }
   .member-name{ font-weight: 800; font-size: 14.5px; }
+  .solo-name-input{
+    font-weight: 800; font-size: 14.5px; color: var(--ink); background: none; border: none;
+    border-bottom: 1px dashed var(--line); padding: 0 0 1px; width: 140px; max-width: 100%;
+  }
+  .solo-name-input:focus{ outline: none; border-bottom-color: var(--accent); }
+  .solo-name-input::placeholder{ color: var(--ink-faint); font-weight: 700; }
   .member-name .you-tag{ color: var(--accent); font-weight: 700; font-size: 10.5px; text-transform: uppercase; letter-spacing: .06em; margin-left: 6px; }
   .member-mini{ font-size: 11.5px; color: var(--ink-dim); font-family: "JetBrains Mono", monospace; }
   .member-summary{ display: flex; align-items: center; gap: 14px; flex: none; }
@@ -420,6 +426,15 @@
   .food-row .fr-name{ font-weight: 700; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .food-row .fr-amt{ color: var(--ink-dim); font-family: "JetBrains Mono", monospace; font-size: 11px; }
   .food-row .fr-kcal{ color: var(--accent); font-weight: 700; font-family: "JetBrains Mono", monospace; font-size: 11.5px; }
+  .food-row .fr-macros{ color: var(--ink-faint); font-family: "JetBrains Mono", monospace; font-size: 10.5px; flex: none; white-space: nowrap; }
+  .food-stats{ display: flex; gap: 8px; margin: 0 0 14px; flex-wrap: wrap; }
+  .food-stat{ flex: 1; min-width: 74px; background: var(--surface-2); border-radius: 9px; padding: 8px 10px; display: flex; flex-direction: column; gap: 1px; }
+  .food-stat .fs-num{ font-family: "Bebas Neue", sans-serif; font-size: 19px; line-height: 1.1; color: var(--ink); }
+  .food-stat .fs-num span{ font-family: "Manrope", sans-serif; font-size: 10.5px; font-weight: 600; color: var(--ink-faint); margin-left: 2px; }
+  .food-stat .fs-label{ font-size: 9.5px; text-transform: uppercase; letter-spacing: .05em; color: var(--ink-faint); font-weight: 700; }
+  .food-stat.fs-protein .fs-num{ color: var(--gold); }
+  .food-stat.fs-carbs .fs-num{ color: var(--accent); }
+  .food-stat.fs-burn .fs-num{ color: var(--good); }
   .food-row .fr-x{ background: none; border: none; color: var(--ink-faint); cursor: pointer; flex: none; width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; border-radius: 50%; }
   .food-row .fr-x:hover{ color: var(--bad); background: var(--surface); }
   .food-row .fr-x svg{ width: 10px; height: 10px; }
@@ -646,41 +661,97 @@
   /* kcal per 100g, approximate — used to auto-calculate calories from an amount */
   /* serving = typical grams for "1 ea" of that food; unit = what "1 ea" means */
   var COMMON_FOODS = [
-    { name: "Chicken Breast", kcal100: 165, serving: 174, unit: "breast" }, { name: "Chicken Thigh", kcal100: 209, serving: 116, unit: "thigh" },
-    { name: "Ground Beef (85% lean)", kcal100: 215, serving: 113, unit: "serving" }, { name: "Salmon", kcal100: 208, serving: 154, unit: "fillet" },
-    { name: "Tuna (canned in water)", kcal100: 116, serving: 85, unit: "can" }, { name: "Shrimp", kcal100: 99, serving: 85, unit: "serving" },
-    { name: "Eggs", kcal100: 155, serving: 50, unit: "egg" }, { name: "Egg Whites", kcal100: 52, serving: 33, unit: "egg white" },
-    { name: "Tofu", kcal100: 76, serving: 84, unit: "serving" }, { name: "Turkey Breast", kcal100: 135, serving: 85, unit: "serving" },
-    { name: "Pork Chop", kcal100: 231, serving: 145, unit: "chop" }, { name: "Bacon", kcal100: 541, serving: 8, unit: "slice" },
-    { name: "Greek Yogurt (plain)", kcal100: 59, serving: 170, unit: "container" }, { name: "Cottage Cheese", kcal100: 98, serving: 113, unit: "serving" },
-    { name: "Whey Protein Powder", kcal100: 400, serving: 30, unit: "scoop" },
-    { name: "White Rice (cooked)", kcal100: 130, serving: 158, unit: "cup" }, { name: "Brown Rice (cooked)", kcal100: 112, serving: 195, unit: "cup" },
-    { name: "Oats (dry)", kcal100: 389, serving: 40, unit: "serving" }, { name: "Quinoa (cooked)", kcal100: 120, serving: 185, unit: "cup" },
-    { name: "Whole Wheat Bread", kcal100: 247, serving: 28, unit: "slice" }, { name: "White Bread", kcal100: 265, serving: 25, unit: "slice" },
-    { name: "Pasta (cooked)", kcal100: 131, serving: 140, unit: "cup" }, { name: "Sweet Potato", kcal100: 86, serving: 130, unit: "medium" },
-    { name: "Potato (baked)", kcal100: 93, serving: 173, unit: "medium" }, { name: "Tortilla (flour)", kcal100: 310, serving: 45, unit: "tortilla" },
-    { name: "Bagel", kcal100: 250, serving: 105, unit: "bagel" }, { name: "Cereal", kcal100: 380, serving: 30, unit: "cup" },
-    { name: "Banana", kcal100: 89, serving: 118, unit: "medium" }, { name: "Apple", kcal100: 52, serving: 182, unit: "medium" },
-    { name: "Orange", kcal100: 47, serving: 131, unit: "medium" }, { name: "Strawberries", kcal100: 32, serving: 152, unit: "cup" },
-    { name: "Blueberries", kcal100: 57, serving: 148, unit: "cup" }, { name: "Grapes", kcal100: 69, serving: 151, unit: "cup" },
-    { name: "Mango", kcal100: 60, serving: 165, unit: "half" }, { name: "Avocado", kcal100: 160, serving: 150, unit: "avocado" },
-    { name: "Watermelon", kcal100: 30, serving: 152, unit: "cup" }, { name: "Pineapple", kcal100: 50, serving: 165, unit: "cup" },
-    { name: "Broccoli", kcal100: 34, serving: 91, unit: "cup" }, { name: "Spinach", kcal100: 23, serving: 30, unit: "cup" },
-    { name: "Carrots", kcal100: 41, serving: 61, unit: "medium" }, { name: "Bell Pepper", kcal100: 31, serving: 119, unit: "medium" },
-    { name: "Tomato", kcal100: 18, serving: 123, unit: "medium" }, { name: "Cucumber", kcal100: 15, serving: 52, unit: "half" },
-    { name: "Lettuce", kcal100: 15, serving: 36, unit: "cup" }, { name: "Onion", kcal100: 40, serving: 110, unit: "medium" },
-    { name: "Corn", kcal100: 86, serving: 90, unit: "ear" }, { name: "Green Beans", kcal100: 31, serving: 100, unit: "cup" },
-    { name: "Whole Milk", kcal100: 61, serving: 244, unit: "cup" }, { name: "Skim Milk", kcal100: 34, serving: 245, unit: "cup" },
-    { name: "Cheddar Cheese", kcal100: 403, serving: 28, unit: "slice" }, { name: "Mozzarella Cheese", kcal100: 280, serving: 28, unit: "oz" },
-    { name: "Butter", kcal100: 717, serving: 14, unit: "tbsp" }, { name: "Olive Oil", kcal100: 884, serving: 14, unit: "tbsp" },
-    { name: "Peanut Butter", kcal100: 588, serving: 32, unit: "2 tbsp" }, { name: "Almonds", kcal100: 579, serving: 28, unit: "oz" },
-    { name: "Walnuts", kcal100: 654, serving: 28, unit: "oz" }, { name: "Peanuts", kcal100: 567, serving: 28, unit: "oz" },
-    { name: "Black Beans (cooked)", kcal100: 132, serving: 172, unit: "cup" }, { name: "Chickpeas (cooked)", kcal100: 164, serving: 164, unit: "cup" },
-    { name: "Lentils (cooked)", kcal100: 116, serving: 198, unit: "cup" },
-    { name: "Dark Chocolate", kcal100: 546, serving: 28, unit: "oz" }, { name: "Potato Chips", kcal100: 536, serving: 28, unit: "small bag" },
-    { name: "Popcorn (air-popped)", kcal100: 387, serving: 8, unit: "cup" }, { name: "Honey", kcal100: 304, serving: 21, unit: "tbsp" },
-    { name: "Pizza (cheese slice)", kcal100: 266, serving: 107, unit: "slice" }, { name: "Hamburger", kcal100: 250, serving: 110, unit: "burger" },
-    { name: "French Fries", kcal100: 312, serving: 117, unit: "serving" }, { name: "Protein Bar", kcal100: 350, serving: 60, unit: "bar" }
+    { name: "Chicken Breast", kcal100: 165, protein100: 31, carbs100: 0, serving: 174, unit: "breast" }, { name: "Chicken Thigh", kcal100: 209, protein100: 26, carbs100: 0, serving: 116, unit: "thigh" },
+    { name: "Ground Beef (85% lean)", kcal100: 215, protein100: 26, carbs100: 0, serving: 113, unit: "serving" }, { name: "Salmon", kcal100: 208, protein100: 20, carbs100: 0, serving: 154, unit: "fillet" },
+    { name: "Tuna (canned in water)", kcal100: 116, protein100: 26, carbs100: 0, serving: 85, unit: "can" }, { name: "Shrimp", kcal100: 99, protein100: 24, carbs100: 0, serving: 85, unit: "serving" },
+    { name: "Eggs", kcal100: 155, protein100: 13, carbs100: 1, serving: 50, unit: "egg" }, { name: "Egg Whites", kcal100: 52, protein100: 11, carbs100: 1, serving: 33, unit: "egg white" },
+    { name: "Tofu", kcal100: 76, protein100: 8, carbs100: 2, serving: 84, unit: "serving" }, { name: "Turkey Breast", kcal100: 135, protein100: 30, carbs100: 0, serving: 85, unit: "serving" },
+    { name: "Pork Chop", kcal100: 231, protein100: 25, carbs100: 0, serving: 145, unit: "chop" }, { name: "Bacon", kcal100: 541, protein100: 37, carbs100: 1, serving: 8, unit: "slice" },
+    { name: "Greek Yogurt (plain)", kcal100: 59, protein100: 10, carbs100: 4, serving: 170, unit: "container" }, { name: "Cottage Cheese", kcal100: 98, protein100: 11, carbs100: 3, serving: 113, unit: "serving" },
+    { name: "Whey Protein Powder", kcal100: 400, protein100: 80, carbs100: 8, serving: 30, unit: "scoop" },
+    { name: "White Rice (cooked)", kcal100: 130, protein100: 3, carbs100: 28, serving: 158, unit: "cup" }, { name: "Brown Rice (cooked)", kcal100: 112, protein100: 3, carbs100: 24, serving: 195, unit: "cup" },
+    { name: "Oats (dry)", kcal100: 389, protein100: 17, carbs100: 66, serving: 40, unit: "serving" }, { name: "Quinoa (cooked)", kcal100: 120, protein100: 4, carbs100: 21, serving: 185, unit: "cup" },
+    { name: "Whole Wheat Bread", kcal100: 247, protein100: 13, carbs100: 41, serving: 28, unit: "slice" }, { name: "White Bread", kcal100: 265, protein100: 9, carbs100: 49, serving: 25, unit: "slice" },
+    { name: "Pasta (cooked)", kcal100: 131, protein100: 5, carbs100: 25, serving: 140, unit: "cup" }, { name: "Sweet Potato", kcal100: 86, protein100: 2, carbs100: 20, serving: 130, unit: "medium" },
+    { name: "Potato (baked)", kcal100: 93, protein100: 3, carbs100: 21, serving: 173, unit: "medium" }, { name: "Tortilla (flour)", kcal100: 310, protein100: 8, carbs100: 51, serving: 45, unit: "tortilla" },
+    { name: "Bagel", kcal100: 250, protein100: 10, carbs100: 49, serving: 105, unit: "bagel" }, { name: "Cereal", kcal100: 380, protein100: 7, carbs100: 82, serving: 30, unit: "cup" },
+    { name: "Banana", kcal100: 89, protein100: 1, carbs100: 23, serving: 118, unit: "medium" }, { name: "Apple", kcal100: 52, protein100: 0, carbs100: 14, serving: 182, unit: "medium" },
+    { name: "Orange", kcal100: 47, protein100: 1, carbs100: 12, serving: 131, unit: "medium" }, { name: "Strawberries", kcal100: 32, protein100: 1, carbs100: 8, serving: 152, unit: "cup" },
+    { name: "Blueberries", kcal100: 57, protein100: 1, carbs100: 14, serving: 148, unit: "cup" }, { name: "Grapes", kcal100: 69, protein100: 1, carbs100: 18, serving: 151, unit: "cup" },
+    { name: "Mango", kcal100: 60, protein100: 1, carbs100: 15, serving: 165, unit: "half" }, { name: "Avocado", kcal100: 160, protein100: 2, carbs100: 9, serving: 150, unit: "avocado" },
+    { name: "Watermelon", kcal100: 30, protein100: 1, carbs100: 8, serving: 152, unit: "cup" }, { name: "Pineapple", kcal100: 50, protein100: 1, carbs100: 13, serving: 165, unit: "cup" },
+    { name: "Broccoli", kcal100: 34, protein100: 3, carbs100: 7, serving: 91, unit: "cup" }, { name: "Spinach", kcal100: 23, protein100: 3, carbs100: 4, serving: 30, unit: "cup" },
+    { name: "Carrots", kcal100: 41, protein100: 1, carbs100: 10, serving: 61, unit: "medium" }, { name: "Bell Pepper", kcal100: 31, protein100: 1, carbs100: 6, serving: 119, unit: "medium" },
+    { name: "Tomato", kcal100: 18, protein100: 1, carbs100: 4, serving: 123, unit: "medium" }, { name: "Cucumber", kcal100: 15, protein100: 1, carbs100: 4, serving: 52, unit: "half" },
+    { name: "Lettuce", kcal100: 15, protein100: 1, carbs100: 3, serving: 36, unit: "cup" }, { name: "Onion", kcal100: 40, protein100: 1, carbs100: 9, serving: 110, unit: "medium" },
+    { name: "Corn", kcal100: 86, protein100: 3, carbs100: 19, serving: 90, unit: "ear" }, { name: "Green Beans", kcal100: 31, protein100: 2, carbs100: 7, serving: 100, unit: "cup" },
+    { name: "Whole Milk", kcal100: 61, protein100: 3, carbs100: 5, serving: 244, unit: "cup" }, { name: "Skim Milk", kcal100: 34, protein100: 3, carbs100: 5, serving: 245, unit: "cup" },
+    { name: "Cheddar Cheese", kcal100: 403, protein100: 25, carbs100: 1, serving: 28, unit: "slice" }, { name: "Mozzarella Cheese", kcal100: 280, protein100: 22, carbs100: 2, serving: 28, unit: "oz" },
+    { name: "Butter", kcal100: 717, protein100: 1, carbs100: 0, serving: 14, unit: "tbsp" }, { name: "Olive Oil", kcal100: 884, protein100: 0, carbs100: 0, serving: 14, unit: "tbsp" },
+    { name: "Peanut Butter", kcal100: 588, protein100: 25, carbs100: 20, serving: 32, unit: "2 tbsp" }, { name: "Almonds", kcal100: 579, protein100: 21, carbs100: 22, serving: 28, unit: "oz" },
+    { name: "Walnuts", kcal100: 654, protein100: 15, carbs100: 14, serving: 28, unit: "oz" }, { name: "Peanuts", kcal100: 567, protein100: 26, carbs100: 16, serving: 28, unit: "oz" },
+    { name: "Black Beans (cooked)", kcal100: 132, protein100: 9, carbs100: 24, serving: 172, unit: "cup" }, { name: "Chickpeas (cooked)", kcal100: 164, protein100: 9, carbs100: 27, serving: 164, unit: "cup" },
+    { name: "Lentils (cooked)", kcal100: 116, protein100: 9, carbs100: 20, serving: 198, unit: "cup" },
+    { name: "Dark Chocolate", kcal100: 546, protein100: 5, carbs100: 61, serving: 28, unit: "oz" }, { name: "Potato Chips", kcal100: 536, protein100: 7, carbs100: 53, serving: 28, unit: "small bag" },
+    { name: "Popcorn (air-popped)", kcal100: 387, protein100: 13, carbs100: 78, serving: 8, unit: "cup" }, { name: "Honey", kcal100: 304, protein100: 0, carbs100: 82, serving: 21, unit: "tbsp" },
+    { name: "Pizza (cheese slice)", kcal100: 266, protein100: 11, carbs100: 33, serving: 107, unit: "slice" }, { name: "Hamburger", kcal100: 250, protein100: 13, carbs100: 24, serving: 110, unit: "burger" },
+    { name: "French Fries", kcal100: 312, protein100: 3, carbs100: 41, serving: 117, unit: "serving" }, { name: "Protein Bar", kcal100: 350, protein100: 20, carbs100: 35, serving: 60, unit: "bar" },
+    { name: "Turkey Bacon", kcal100: 150, protein100: 20, carbs100: 2, serving: 8, unit: "slice" }, { name: "Deli Ham", kcal100: 145, protein100: 18, carbs100: 2, serving: 28, unit: "slice" },
+    { name: "Steak (Sirloin)", kcal100: 271, protein100: 26, carbs100: 0, serving: 170, unit: "steak" }, { name: "Ground Turkey (93% lean)", kcal100: 176, protein100: 20, carbs100: 0, serving: 113, unit: "serving" },
+    { name: "Tilapia", kcal100: 96, protein100: 20, carbs100: 0, serving: 127, unit: "fillet" }, { name: "Cod", kcal100: 82, protein100: 18, carbs100: 0, serving: 154, unit: "fillet" },
+    { name: "Crab", kcal100: 97, protein100: 19, carbs100: 0, serving: 85, unit: "serving" }, { name: "Lobster", kcal100: 89, protein100: 19, carbs100: 0, serving: 145, unit: "serving" },
+    { name: "Scallops", kcal100: 111, protein100: 21, carbs100: 5, serving: 85, unit: "serving" }, { name: "Pork Sausage", kcal100: 325, protein100: 14, carbs100: 2, serving: 75, unit: "link" },
+    { name: "Salami", kcal100: 336, protein100: 21, carbs100: 2, serving: 28, unit: "oz" }, { name: "Duck Breast", kcal100: 201, protein100: 24, carbs100: 0, serving: 140, unit: "breast" },
+    { name: "Venison", kcal100: 158, protein100: 30, carbs100: 0, serving: 113, unit: "serving" }, { name: "Beef Jerky", kcal100: 410, protein100: 33, carbs100: 11, serving: 28, unit: "oz" },
+    { name: "Rotisserie Chicken", kcal100: 190, protein100: 25, carbs100: 0, serving: 140, unit: "serving" },
+    { name: "Ricotta Cheese", kcal100: 174, protein100: 11, carbs100: 3, serving: 62, unit: "1/4 cup" }, { name: "Feta Cheese", kcal100: 264, protein100: 14, carbs100: 4, serving: 28, unit: "oz" },
+    { name: "Parmesan Cheese", kcal100: 431, protein100: 38, carbs100: 4, serving: 28, unit: "oz" }, { name: "String Cheese", kcal100: 80, protein100: 7, carbs100: 1, serving: 28, unit: "stick" },
+    { name: "Sour Cream", kcal100: 198, protein100: 2, carbs100: 5, serving: 30, unit: "2 tbsp" }, { name: "Cream Cheese", kcal100: 342, protein100: 6, carbs100: 4, serving: 30, unit: "2 tbsp" },
+    { name: "Half and Half", kcal100: 130, protein100: 3, carbs100: 4, serving: 30, unit: "2 tbsp" }, { name: "Almond Milk (unsweetened)", kcal100: 15, protein100: 1, carbs100: 1, serving: 240, unit: "cup" },
+    { name: "Oat Milk", kcal100: 45, protein100: 1, carbs100: 7, serving: 240, unit: "cup" }, { name: "Soy Milk", kcal100: 54, protein100: 3, carbs100: 4, serving: 240, unit: "cup" },
+    { name: "Chocolate Milk", kcal100: 83, protein100: 3, carbs100: 12, serving: 244, unit: "cup" }, { name: "Deviled Egg", kcal100: 62, protein100: 3, carbs100: 1, serving: 25, unit: "egg half" },
+    { name: "Couscous (cooked)", kcal100: 112, protein100: 4, carbs100: 23, serving: 157, unit: "cup" }, { name: "Barley (cooked)", kcal100: 123, protein100: 2, carbs100: 28, serving: 157, unit: "cup" },
+    { name: "Farro (cooked)", kcal100: 170, protein100: 6, carbs100: 34, serving: 175, unit: "cup" }, { name: "Grits (cooked)", kcal100: 71, protein100: 2, carbs100: 15, serving: 242, unit: "cup" },
+    { name: "Rice Cake", kcal100: 387, protein100: 8, carbs100: 82, serving: 9, unit: "cake" }, { name: "English Muffin", kcal100: 134, protein100: 5, carbs100: 26, serving: 57, unit: "muffin" },
+    { name: "Croissant", kcal100: 406, protein100: 8, carbs100: 45, serving: 67, unit: "croissant" }, { name: "Pita Bread", kcal100: 165, protein100: 5, carbs100: 33, serving: 60, unit: "pita" },
+    { name: "Naan Bread", kcal100: 310, protein100: 9, carbs100: 50, serving: 90, unit: "piece" }, { name: "Rye Bread", kcal100: 259, protein100: 9, carbs100: 48, serving: 32, unit: "slice" },
+    { name: "Waffle", kcal100: 291, protein100: 7, carbs100: 33, serving: 75, unit: "waffle" }, { name: "Pancake", kcal100: 227, protein100: 6, carbs100: 28, serving: 77, unit: "3 pancakes" },
+    { name: "Granola", kcal100: 471, protein100: 10, carbs100: 64, serving: 30, unit: "1/3 cup" }, { name: "Muesli", kcal100: 340, protein100: 10, carbs100: 66, serving: 40, unit: "1/2 cup" },
+    { name: "Instant Ramen", kcal100: 436, protein100: 10, carbs100: 62, serving: 85, unit: "package" }, { name: "Mac and Cheese", kcal100: 164, protein100: 6, carbs100: 20, serving: 200, unit: "cup" },
+    { name: "Kiwi", kcal100: 61, protein100: 1, carbs100: 15, serving: 76, unit: "medium" }, { name: "Peach", kcal100: 39, protein100: 1, carbs100: 10, serving: 150, unit: "medium" },
+    { name: "Pear", kcal100: 57, protein100: 0, carbs100: 15, serving: 178, unit: "medium" }, { name: "Plum", kcal100: 46, protein100: 1, carbs100: 11, serving: 66, unit: "medium" },
+    { name: "Cherries", kcal100: 63, protein100: 1, carbs100: 16, serving: 138, unit: "cup" }, { name: "Raspberries", kcal100: 52, protein100: 1, carbs100: 12, serving: 123, unit: "cup" },
+    { name: "Blackberries", kcal100: 43, protein100: 1, carbs100: 10, serving: 144, unit: "cup" }, { name: "Pomegranate Seeds", kcal100: 83, protein100: 2, carbs100: 19, serving: 87, unit: "1/2 cup" },
+    { name: "Grapefruit", kcal100: 42, protein100: 1, carbs100: 11, serving: 123, unit: "half" }, { name: "Cantaloupe", kcal100: 34, protein100: 1, carbs100: 8, serving: 160, unit: "cup" },
+    { name: "Dates", kcal100: 282, protein100: 2, carbs100: 75, serving: 24, unit: "3 dates" }, { name: "Raisins", kcal100: 299, protein100: 3, carbs100: 79, serving: 40, unit: "small box" },
+    { name: "Dried Apricots", kcal100: 241, protein100: 3, carbs100: 63, serving: 30, unit: "1/4 cup" },
+    { name: "Cauliflower", kcal100: 25, protein100: 2, carbs100: 5, serving: 100, unit: "cup" }, { name: "Zucchini", kcal100: 17, protein100: 1, carbs100: 3, serving: 124, unit: "cup" },
+    { name: "Asparagus", kcal100: 20, protein100: 2, carbs100: 4, serving: 90, unit: "cup" }, { name: "Brussels Sprouts", kcal100: 43, protein100: 3, carbs100: 9, serving: 88, unit: "cup" },
+    { name: "Kale", kcal100: 49, protein100: 4, carbs100: 9, serving: 67, unit: "cup" }, { name: "Cabbage", kcal100: 25, protein100: 1, carbs100: 6, serving: 89, unit: "cup" },
+    { name: "Mushrooms", kcal100: 22, protein100: 3, carbs100: 3, serving: 70, unit: "cup" }, { name: "Celery", kcal100: 16, protein100: 1, carbs100: 3, serving: 101, unit: "cup" },
+    { name: "Peas", kcal100: 81, protein100: 5, carbs100: 14, serving: 145, unit: "cup" }, { name: "Beets", kcal100: 43, protein100: 2, carbs100: 10, serving: 136, unit: "cup" },
+    { name: "Butternut Squash", kcal100: 45, protein100: 1, carbs100: 12, serving: 140, unit: "cup" }, { name: "Eggplant", kcal100: 25, protein100: 1, carbs100: 6, serving: 82, unit: "cup" },
+    { name: "Radish", kcal100: 16, protein100: 1, carbs100: 3, serving: 116, unit: "cup" }, { name: "Garlic", kcal100: 149, protein100: 6, carbs100: 33, serving: 3, unit: "clove" },
+    { name: "Edamame", kcal100: 122, protein100: 11, carbs100: 10, serving: 155, unit: "cup" }, { name: "Kidney Beans (cooked)", kcal100: 127, protein100: 9, carbs100: 23, serving: 177, unit: "cup" },
+    { name: "Pinto Beans (cooked)", kcal100: 143, protein100: 9, carbs100: 26, serving: 171, unit: "cup" }, { name: "Hummus", kcal100: 166, protein100: 8, carbs100: 14, serving: 60, unit: "1/4 cup" },
+    { name: "Cashews", kcal100: 553, protein100: 18, carbs100: 30, serving: 28, unit: "oz" }, { name: "Pistachios", kcal100: 560, protein100: 20, carbs100: 28, serving: 28, unit: "oz" },
+    { name: "Pecans", kcal100: 691, protein100: 9, carbs100: 14, serving: 28, unit: "oz" }, { name: "Chia Seeds", kcal100: 486, protein100: 17, carbs100: 42, serving: 28, unit: "2 tbsp" },
+    { name: "Flax Seeds", kcal100: 534, protein100: 18, carbs100: 29, serving: 14, unit: "tbsp" }, { name: "Sunflower Seeds", kcal100: 584, protein100: 21, carbs100: 20, serving: 28, unit: "oz" },
+    { name: "Coconut Oil", kcal100: 862, protein100: 0, carbs100: 0, serving: 14, unit: "tbsp" }, { name: "Mayonnaise", kcal100: 680, protein100: 1, carbs100: 1, serving: 14, unit: "tbsp" },
+    { name: "Ranch Dressing", kcal100: 430, protein100: 1, carbs100: 5, serving: 30, unit: "2 tbsp" },
+    { name: "Ice Cream", kcal100: 207, protein100: 4, carbs100: 24, serving: 66, unit: "1/2 cup" }, { name: "Chocolate Chip Cookie", kcal100: 488, protein100: 5, carbs100: 64, serving: 16, unit: "cookie" },
+    { name: "Brownie", kcal100: 466, protein100: 6, carbs100: 58, serving: 56, unit: "square" }, { name: "Glazed Donut", kcal100: 452, protein100: 5, carbs100: 51, serving: 60, unit: "donut" },
+    { name: "Frosted Cake", kcal100: 371, protein100: 3, carbs100: 52, serving: 64, unit: "slice" }, { name: "Blueberry Muffin", kcal100: 377, protein100: 6, carbs100: 57, serving: 113, unit: "muffin" },
+    { name: "Pretzels", kcal100: 380, protein100: 10, carbs100: 79, serving: 28, unit: "oz" }, { name: "Tortilla Chips", kcal100: 489, protein100: 7, carbs100: 64, serving: 28, unit: "small bag" },
+    { name: "Trail Mix", kcal100: 462, protein100: 13, carbs100: 45, serving: 40, unit: "1/4 cup" }, { name: "Granola Bar", kcal100: 471, protein100: 7, carbs100: 64, serving: 35, unit: "bar" },
+    { name: "Cola", kcal100: 42, protein100: 0, carbs100: 11, serving: 355, unit: "can" }, { name: "Orange Juice", kcal100: 45, protein100: 1, carbs100: 10, serving: 248, unit: "cup" },
+    { name: "Beer", kcal100: 43, protein100: 0, carbs100: 4, serving: 355, unit: "can" }, { name: "Red Wine", kcal100: 85, protein100: 0, carbs100: 3, serving: 148, unit: "glass" },
+    { name: "Black Coffee", kcal100: 1, protein100: 0, carbs100: 0, serving: 240, unit: "cup" }, { name: "Latte (whole milk)", kcal100: 54, protein100: 3, carbs100: 4, serving: 350, unit: "16oz" },
+    { name: "Chicken Wings (fried)", kcal100: 290, protein100: 27, carbs100: 0, serving: 100, unit: "serving" }, { name: "Chicken Nuggets", kcal100: 296, protein100: 15, carbs100: 17, serving: 100, unit: "6 pieces" },
+    { name: "Chicken Burrito", kcal100: 220, protein100: 12, carbs100: 25, serving: 100, unit: "serving" }, { name: "Beef Taco", kcal100: 226, protein100: 12, carbs100: 14, serving: 100, unit: "taco" },
+    { name: "California Roll", kcal100: 145, protein100: 5, carbs100: 25, serving: 100, unit: "roll" }, { name: "Steak Fries", kcal100: 232, protein100: 3, carbs100: 33, serving: 100, unit: "serving" },
+    { name: "Onion Rings", kcal100: 411, protein100: 5, carbs100: 45, serving: 100, unit: "serving" }, { name: "Milkshake", kcal100: 246, protein100: 6, carbs100: 36, serving: 100, unit: "serving" },
+    { name: "Protein Shake (RTD)", kcal100: 31, protein100: 6, carbs100: 1, serving: 325, unit: "bottle" }
   ];
 
   var SUGGESTIONS = [
@@ -794,6 +865,7 @@
     migrateHabitsCore(state.habits);
     if(!state.customFoods) state.customFoods = [];
     if(!state.calorieTarget) state.calorieTarget = 2000;
+    if(typeof state.name !== "string") state.name = "";
     return state;
   }
   function saveSolo(soloState){ try{ localStorage.setItem(SOLO_KEY, JSON.stringify(soloState)); }catch(e){} }
@@ -818,7 +890,7 @@
 
   function currentHabits(){ return mode === "solo" ? soloState.habits : board.habits; }
   function currentMembers(){
-    if(mode === "solo") return [{ id: "me", name: null, days: soloState.days, solo: true, calorieTarget: soloState.calorieTarget, weightUnit: soloState.weightUnit, sex: soloState.sex, age: soloState.age }];
+    if(mode === "solo") return [{ id: "me", name: soloState.name || null, days: soloState.days, solo: true, calorieTarget: soloState.calorieTarget, weightUnit: soloState.weightUnit, sex: soloState.sex, age: soloState.age }];
     return board.members;
   }
 
@@ -1086,6 +1158,8 @@
     var rec = member.days[viewedDate] || {};
     var entries = rec._food || [];
     var total = entries.reduce(function(s, f){ return s + f.kcal; }, 0);
+    var protein = entries.reduce(function(s, f){ return s + (f.protein || 0); }, 0);
+    var carbs = entries.reduce(function(s, f){ return s + (f.carbs || 0); }, 0);
     var target = member.calorieTarget || 2000;
     var pct = target ? Math.min(100, total / target * 100) : 0;
     var over = total > target;
@@ -1097,11 +1171,21 @@
           '<div class="food-total">' + total + '<span>/ ' + target + ' kcal</span></div>' +
           (isMine ? '<button class="food-target" type="button" data-action="edittarget" data-member="' + escHTML(member.id) + '" data-habit="' + escHTML(habit.id) + '"><span>Target: ' + target + ' kcal — edit</span></button>' : "") +
         '</div>' +
-        (burned > 0 ? '<p class="food-burn">~' + burned + ' kcal burned today · net ' + (total - burned) + ' kcal</p>' : "") +
+        '<div class="food-stats">' +
+          '<div class="food-stat fs-protein"><span class="fs-num">' + protein + '<span>g</span></span><span class="fs-label">Protein</span></div>' +
+          '<div class="food-stat fs-carbs"><span class="fs-num">' + carbs + '<span>g</span></span><span class="fs-label">Carbs</span></div>' +
+          '<div class="food-stat fs-burn"><span class="fs-num">' + burned + '<span>kcal</span></span><span class="fs-label">Burned</span></div>' +
+          '<div class="food-stat fs-net"><span class="fs-num">' + (total - burned) + '<span>kcal</span></span><span class="fs-label">Net</span></div>' +
+        '</div>' +
         '<div class="food-bar"><div class="food-bar-fill' + (over ? " over" : "") + '" style="width:' + pct.toFixed(1) + '%"></div></div>' +
         '<div class="food-list">' +
         (entries.length ? entries.map(function(f, idx){
-          return '<div class="food-row"><span class="fr-name">' + escHTML(f.name) + '</span><span class="fr-amt">' + escHTML(foodAmountLabel(f)) + '</span><span class="fr-kcal">' + f.kcal + ' kcal</span>' +
+          var macroBits = [];
+          if(f.protein) macroBits.push("P" + f.protein + "g");
+          if(f.carbs) macroBits.push("C" + f.carbs + "g");
+          return '<div class="food-row"><span class="fr-name">' + escHTML(f.name) + '</span><span class="fr-amt">' + escHTML(foodAmountLabel(f)) + '</span>' +
+            (macroBits.length ? '<span class="fr-macros">' + macroBits.join(" · ") + '</span>' : "") +
+            '<span class="fr-kcal">' + f.kcal + ' kcal</span>' +
             (isMine ? '<button class="fr-x" type="button" data-action="rmfood" data-member="' + escHTML(member.id) + '" data-habit="' + escHTML(habit.id) + '" data-idx="' + idx + '">' + ICONS.close + '</button>' : "") +
           '</div>';
         }).join("") : '<p class="food-empty">Nothing logged yet today.</p>') +
@@ -1215,14 +1299,16 @@
     var xp = xpFor(t);
     var level = levelFor(xp);
     var intoLevel = xp % XP_PER_LEVEL;
-    var name = member.solo ? null : member.name;
+    var name = member.name;
     var heat = heatRowHTML(days, core);
 
     var head = '<div class="member-head" data-action="expand" data-member="' + escHTML(member.id) + '">' +
       '<div class="member-who">' +
-        (member.solo ? "" : '<span class="member-avatar">' + escHTML(initialsFor(name)) + '</span>') +
+        '<span class="member-avatar">' + escHTML(name ? initialsFor(name) : "★") + '</span>' +
         '<div>' +
-          (member.solo ? "" : '<div class="member-name">' + escHTML(name) + (isMine ? '<span class="you-tag">You</span>' : "") + '</div>') +
+          (member.solo
+            ? '<input type="text" class="solo-name-input" placeholder="Your name" maxlength="24" value="' + escHTML(name || "") + '" data-role="solo-name" data-member="me">'
+            : '<div class="member-name">' + escHTML(name) + (isMine ? '<span class="you-tag">You</span>' : "") + '</div>') +
           '<div class="member-mini">' + done + '/' + core.length + ' today · ' + pStreak + (pStreak === 1 ? " day" : " days") + ' streak</div>' +
         '</div>' +
       '</div>' +
@@ -1775,14 +1861,18 @@
         if(!fname || !(famt > 0)){ showToast("Enter a food and an amount"); return; }
         var funit = unitBtn ? unitBtn.dataset.unit : "g";
         var match = foodMatch(fname);
-        var kcal, rememberFood = null, eaUnit = null;
+        var kcal, rememberFood = null, eaUnit = null, protein = 0, carbs = 0;
         if(funit === "ea" && match && match.serving){
           var gramsEa = famt * match.serving;
           kcal = Math.round(match.kcal100 * gramsEa / 100);
+          if(match.protein100) protein = Math.round(match.protein100 * gramsEa / 100);
+          if(match.carbs100) carbs = Math.round(match.carbs100 * gramsEa / 100);
           eaUnit = match.unit;
         } else if(funit !== "ea" && match){
           var grams = Math.round(funit === "oz" ? famt * 28.3495 : famt);
           kcal = Math.round(match.kcal100 * grams / 100);
+          if(match.protein100) protein = Math.round(match.protein100 * grams / 100);
+          if(match.carbs100) carbs = Math.round(match.carbs100 * grams / 100);
         } else {
           var manualKcal = parseFloat(kcalInput.value);
           if(!(manualKcal > 0)){ showToast("Enter calories for this food"); kcalInput.focus(); return; }
@@ -1794,6 +1884,8 @@
         }
         var entry = { name: fname, amount: famt, unit: funit, kcal: kcal };
         if(eaUnit) entry.eaUnit = eaUnit;
+        if(protein) entry.protein = protein;
+        if(carbs) entry.carbs = carbs;
         if(mode === "solo") soloAddFood(t.dataset.habit, entry, rememberFood);
         else if(mode === "board") boardAddFood(t.dataset.member, t.dataset.habit, entry, rememberFood);
         return;
@@ -1882,7 +1974,7 @@
   /* Weight and age auto-save: mutate state + re-render immediately (so calorie
      estimates update live as you type) with focus preserved, then persist after
      a short pause in typing — no save button, no per-keystroke network/publish. */
-  var weightSaveTimer = null, ageSaveTimer = null;
+  var weightSaveTimer = null, ageSaveTimer = null, nameSaveTimer = null;
   function persistMemberChange(){
     if(mode === "solo") saveSolo(soloState);
     else if(mode === "board") schedulePublish();
@@ -1920,6 +2012,12 @@
         clearTimeout(ageSaveTimer);
         ageSaveTimer = setTimeout(persistMemberChange, 700);
       }
+    }
+    if(e.target.matches && e.target.matches('[data-role="solo-name"]')){
+      soloState.name = e.target.value;
+      renderPreserveFocus();
+      clearTimeout(nameSaveTimer);
+      nameSaveTimer = setTimeout(function(){ saveSolo(soloState); }, 700);
     }
   });
 
