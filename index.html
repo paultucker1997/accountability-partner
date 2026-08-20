@@ -541,6 +541,8 @@
   .nutri-bar-fill{ height: 100%; border-radius: 99px; background: var(--gold); transition: width .4s ease; }
   .nutri-empty{ font-size: 13px; color: var(--ink-dim); margin: 0 0 14px; }
   .nutri-note{ font-size: 11px; color: var(--ink-faint); margin: 0 0 8px; }
+  #captureVideoWrap{ width: 100%; aspect-ratio: 3 / 4; border-radius: 12px; overflow: hidden; background: #000; margin-bottom: 12px; position: relative; }
+  #captureVideo{ width: 100%; height: 100%; object-fit: cover; display: block; }
   .coach-tip{ font-size: 14px; line-height: 1.55; color: var(--ink); margin: 0 0 16px; white-space: pre-line; }
   .coach-loading{ display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--ink-dim); margin: 0 0 16px; }
 
@@ -632,6 +634,19 @@
 </div>
 
 <input type="file" accept="image/*" capture="environment" id="photoFoodInput" style="display:none">
+
+<div class="modal-overlay" id="captureOverlay">
+  <div class="modal">
+    <div class="modal-head">
+      <h2>Photo Nutrition Facts</h2>
+      <button class="modal-close" id="captureClose" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"></line><line x1="18" y1="6" x2="6" y2="18"></line></svg></button>
+    </div>
+    <div id="captureVideoWrap"><video id="captureVideo" autoplay playsinline muted></video></div>
+    <p class="nutri-note">Frame the Nutrition Facts panel, then tap Capture.</p>
+    <button class="icon-btn" type="button" id="captureShutterBtn" style="width:100%;justify-content:center;">Capture</button>
+    <button class="icon-btn" type="button" id="captureUseFileBtn" style="width:100%;justify-content:center;margin-top:8px;">Choose photo from library instead</button>
+  </div>
+</div>
 
 <div class="toast" id="toast"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2c2.6 3.4-1.7 4.6-1.7 8.2a3.7 3.7 0 1 0 7.4 0c0-1.8-.9-2.8-1.8-4.4.9 2.7-.9 3.6-1.8 1.8.9-1.8-.9-2.7-1.9-5.6z"/></svg><span id="toastText"></span></div>
 
@@ -1059,6 +1074,11 @@
     coachClose: document.getElementById("coachClose"),
     coachBody: document.getElementById("coachBody"),
     photoFoodInput: document.getElementById("photoFoodInput"),
+    captureOverlay: document.getElementById("captureOverlay"),
+    captureClose: document.getElementById("captureClose"),
+    captureVideo: document.getElementById("captureVideo"),
+    captureShutterBtn: document.getElementById("captureShutterBtn"),
+    captureUseFileBtn: document.getElementById("captureUseFileBtn"),
     readonlyBanner: document.getElementById("readonlyBanner"),
     joinCard: document.getElementById("joinCard"),
     rosterLabel: document.getElementById("rosterLabel"),
@@ -1643,9 +1663,40 @@
 
   /* ---------- photo-based food lookup (Vercel-only: needs /api/photo-food, blocked by the artifact CSP) ---------- */
   var photoTargetMember = null, photoTargetHabit = null;
+  var captureStream = null;
   function openLiveScanner(memberId, habitId){
     photoTargetMember = memberId; photoTargetHabit = habitId;
-    showToast("Tip: back up a bit so the whole Nutrition Facts panel fits in frame");
+    if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+      useFileInput();
+      return;
+    }
+    els.captureOverlay.classList.add("open");
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } }).then(function(stream){
+      captureStream = stream;
+      els.captureVideo.srcObject = stream;
+    }).catch(function(){
+      closeCaptureView();
+      useFileInput();
+    });
+  }
+  function closeCaptureView(){
+    els.captureOverlay.classList.remove("open");
+    if(captureStream){ captureStream.getTracks().forEach(function(t){ t.stop(); }); captureStream = null; }
+    els.captureVideo.srcObject = null;
+  }
+  function captureShot(){
+    var video = els.captureVideo;
+    if(!video.videoWidth){ showToast("Camera isn't ready yet — try again in a second."); return; }
+    var canvas = document.createElement("canvas");
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    canvas.getContext("2d").drawImage(video, 0, 0, canvas.width, canvas.height);
+    closeCaptureView();
+    canvas.toBlob(function(blob){
+      if(blob) readLabelWithVision(blob); else showToast("Couldn't capture that photo.");
+    }, "image/jpeg", 0.9);
+  }
+  function useFileInput(){
     els.photoFoodInput.value = "";
     els.photoFoodInput.click();
   }
@@ -2608,6 +2659,10 @@
   els.coachClose.addEventListener("click", closeCoach);
   els.coachOverlay.addEventListener("click", function(e){ if(e.target === els.coachOverlay) closeCoach(); });
   els.photoFoodInput.addEventListener("change", function(e){ onPhotoFoodSelected(e.target.files && e.target.files[0]); });
+  els.captureClose.addEventListener("click", closeCaptureView);
+  els.captureOverlay.addEventListener("click", function(e){ if(e.target === els.captureOverlay) closeCaptureView(); });
+  els.captureShutterBtn.addEventListener("click", captureShot);
+  els.captureUseFileBtn.addEventListener("click", function(){ closeCaptureView(); useFileInput(); });
   els.pickerAddBtn.addEventListener("click", function(){
     var chosen = SUGGESTIONS.filter(function(s){ return pickerSelected.has(s.id); })
       .map(function(s){ return { id: s.id, label: s.label, icon: s.icon, kind: s.kind }; });
