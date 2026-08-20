@@ -596,6 +596,9 @@
     <button class="add-habit-link" id="addHabitBtn" type="button"></button>
   </div>
   <div class="roster" id="roster"></div>
+
+  <div id="scoreboardSection" class="section-label"><span>Scoreboard</span></div>
+  <div class="leaderboard-list" id="scoreboardStrip"></div>
 </div>
 
 <div class="modal-overlay" id="pickerOverlay">
@@ -1079,6 +1082,7 @@
     dayNavLabel: document.getElementById("dayNavLabel"),
     inviteBtn: document.getElementById("inviteBtn"),
     leaderboardBtn: document.getElementById("leaderboardBtn"),
+    scoreboardStrip: document.getElementById("scoreboardStrip"),
     lbOverlay: document.getElementById("lbOverlay"),
     lbClose: document.getElementById("lbClose"),
     lbTitle: document.getElementById("lbTitle"),
@@ -1910,6 +1914,8 @@
       var isExpanded = mode === "solo" ? true : (!!expanded[m.id] || isMine);
       return memberCardHTML(m, isMine, isExpanded, habits);
     }).join("");
+
+    els.scoreboardStrip.innerHTML = leaderboardRowsHTML();
   }
 
   /* Re-renders without losing focus/cursor on the input the user is typing in
