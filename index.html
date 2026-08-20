@@ -3,6 +3,7 @@
 <title>Accountability Partner</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap">
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 
 <style>
   :root{
@@ -536,6 +537,10 @@
   .nutri-bar-fill{ height: 100%; border-radius: 99px; background: var(--gold); transition: width .4s ease; }
   .nutri-empty{ font-size: 13px; color: var(--ink-dim); margin: 0 0 14px; }
   .nutri-note{ font-size: 11px; color: var(--ink-faint); margin: 0 0 8px; }
+  .coach-tip{ font-size: 14px; line-height: 1.55; color: var(--ink); margin: 0 0 16px; white-space: pre-line; }
+  .coach-loading{ display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--ink-dim); margin: 0 0 16px; }
+  #scanRegion{ width: 100%; border-radius: 12px; overflow: hidden; background: #000; min-height: 220px; margin-bottom: 12px; }
+  #scanRegion video{ border-radius: 12px; }
 
   @media (prefers-reduced-motion: reduce){
     .habit-main, .ring-fill, .xp-fill, .toast, .chev{ transition: none !important; }
@@ -550,6 +555,7 @@
       <span class="brand-name">ACCOUNTABILITY PARTNER</span>
     </div>
     <div class="top-right">
+      <button class="icon-btn accent" id="coachBtn" type="button"></button>
       <button class="icon-btn" id="leaderboardBtn" type="button" hidden></button>
       <button class="icon-btn" id="inviteBtn" type="button" hidden></button>
     </div>
@@ -613,6 +619,27 @@
   </div>
 </div>
 
+<div class="modal-overlay" id="coachOverlay">
+  <div class="modal">
+    <div class="modal-head">
+      <h2>AI Coach</h2>
+      <button class="modal-close" id="coachClose" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"></line><line x1="18" y1="6" x2="6" y2="18"></line></svg></button>
+    </div>
+    <div id="coachBody"></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="scanOverlay">
+  <div class="modal">
+    <div class="modal-head">
+      <h2>Scan a Barcode</h2>
+      <button class="modal-close" id="scanClose" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"></line><line x1="18" y1="6" x2="6" y2="18"></line></svg></button>
+    </div>
+    <div id="scanRegion"></div>
+    <p class="nutri-note" id="scanStatus">Point your camera at a product barcode.</p>
+  </div>
+</div>
+
 <div class="toast" id="toast"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2c2.6 3.4-1.7 4.6-1.7 8.2a3.7 3.7 0 1 0 7.4 0c0-1.8-.9-2.8-1.8-4.4.9 2.7-.9 3.6-1.8 1.8.9-1.8-.9-2.7-1.9-5.6z"/></svg><span id="toastText"></span></div>
 
 <script>
@@ -659,6 +686,8 @@
     close: svg('<line x1="6" y1="6" x2="18" y2="18"></line><line x1="18" y1="6" x2="6" y2="18"></line>'),
     pencil: svg('<path d="M14.5 4.5 19.5 9.5 8 21H3v-5Z"></path><line x1="13" y1="6" x2="18" y2="11"></line>'),
     leaf: svg('<path d="M5 19c9 0 14-5 14-14C10 5 5 10 5 19Z"></path><path d="M5 19c3-6 6-9 12-12"></path>'),
+    camera: svg('<path d="M4 8h3l1.5-2h7L17 8h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1Z"></path><circle cx="12" cy="13" r="3.4"></circle>'),
+    sparkle: svg('<path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5 18 18M18 6l-2.5 2.5M8.5 15.5 6 18"></path>'),
     share: svg('<path d="M12 15V4"></path><path d="M8 8l4-4 4 4"></path><path d="M5 13v5a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-5"></path>'),
     lock: svg('<rect x="5" y="11" width="14" height="9" rx="2"></rect><path d="M8 11V8a4 4 0 0 1 8 0v3"></path>'),
     trophy: svg('<path d="M7 3h10v6a5 5 0 0 1-10 0V3Z"></path><path d="M7 5H4a3 3 0 0 0 3 4.5"></path><path d="M17 5h3a3 3 0 0 1-3 4.5"></path><line x1="12" y1="14" x2="12" y2="18"></line><line x1="9" y1="21" x2="15" y2="21"></line>'),
@@ -1032,6 +1061,13 @@
     nutriClose: document.getElementById("nutriClose"),
     nutriTitle: document.getElementById("nutriTitle"),
     nutriBody: document.getElementById("nutriBody"),
+    coachBtn: document.getElementById("coachBtn"),
+    coachOverlay: document.getElementById("coachOverlay"),
+    coachClose: document.getElementById("coachClose"),
+    coachBody: document.getElementById("coachBody"),
+    scanOverlay: document.getElementById("scanOverlay"),
+    scanClose: document.getElementById("scanClose"),
+    scanStatus: document.getElementById("scanStatus"),
     readonlyBanner: document.getElementById("readonlyBanner"),
     joinCard: document.getElementById("joinCard"),
     rosterLabel: document.getElementById("rosterLabel"),
@@ -1318,6 +1354,7 @@
   function foodFormHTML(member, habit, listId){
     var all = COMMON_FOODS.concat(currentCustomFoods());
     return '<div class="food-form" data-member="' + escHTML(member.id) + '" data-habit="' + escHTML(habit.id) + '">' +
+      '<button class="icon-btn" type="button" data-action="scanbarcode" data-member="' + escHTML(member.id) + '" data-habit="' + escHTML(habit.id) + '" style="align-self:flex-start;">' + ICONS.camera + '<span>Scan barcode</span></button>' +
       '<div class="food-form-row">' +
         '<input class="ff-name" type="text" list="' + listId + '" placeholder="Food e.g. Chicken Breast" maxlength="40" data-role="ff-name">' +
         '<input class="ff-amt" type="text" inputmode="decimal" placeholder="Amount" data-role="ff-amt">' +
@@ -1509,6 +1546,132 @@
     els.nutriOverlay.classList.add("open");
   }
   function closeNutrition(){ els.nutriOverlay.classList.remove("open"); }
+
+  /* ---------- AI coach (Vercel-only: needs /api/coach, blocked by the artifact CSP) ---------- */
+  function buildCoachSummary(member, habits){
+    var rec = member.days[viewedDate] || {};
+    var lines = [];
+    lines.push("Date: " + viewedDate + (viewedDate === REAL_TODAY ? " (today)" : ""));
+    lines.push("Perfect-day streak: " + currentStreak(member.days, habits, "__perfect__") + " days (best " + bestStreak(member.days, habits, "__perfect__") + ")");
+    lines.push("Habits:");
+    habits.forEach(function(h){
+      lines.push("- " + h.label + ": " + (isDone(member.days, viewedDate, h.id) ? "done" : "not done"));
+    });
+    var foodEntries = rec._food || [];
+    var totalKcal = foodEntries.reduce(function(s, f){ return s + f.kcal; }, 0);
+    var totalProtein = foodEntries.reduce(function(s, f){ return s + (f.protein || 0); }, 0);
+    var totalCarbs = foodEntries.reduce(function(s, f){ return s + (f.carbs || 0); }, 0);
+    var burned = totalBurnToday(member, habits);
+    lines.push("Food: " + totalKcal + " kcal logged (target " + (member.calorieTarget || 2000) + " kcal), protein " + totalProtein + "g, carbs " + totalCarbs + "g" +
+      (foodEntries.length ? "; items: " + foodEntries.map(function(f){ return f.name; }).join(", ") : "; nothing logged yet"));
+    if(burned > 0) lines.push("Estimated calories burned from exercise: " + burned);
+    if(typeof rec.weight === "number") lines.push("Weight logged: " + rec.weight + " " + (member.weightUnit || "lb"));
+    return lines.join("\n");
+  }
+  function openCoach(){
+    var meId = mode === "solo" ? "me" : (me && me.id);
+    var member = currentMembers().filter(function(m){ return m.id === meId; })[0];
+    if(!member) return;
+    els.coachBody.innerHTML = '<p class="coach-loading">' + ICONS.sparkle + '<span>Thinking…</span></p>';
+    els.coachOverlay.classList.add("open");
+    var summary = buildCoachSummary(member, currentHabits());
+    fetch("/api/coach", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ summary: summary })
+    }).then(function(r){
+      if(!r.ok) return r.json().catch(function(){ return {}; }).then(function(j){ throw new Error(j.error || ("HTTP " + r.status)); });
+      return r.json();
+    }).then(function(data){
+      els.coachBody.innerHTML = '<p class="coach-tip">' + escHTML(data.tip || "No tip returned.") + '</p>';
+    }).catch(function(){
+      els.coachBody.innerHTML =
+        '<p class="nutri-note">The AI Coach couldn’t reach the server. This only works when the app is running on your Vercel deployment with an Anthropic API key configured — it won’t work inside the Claude artifact preview or a plain local file.</p>';
+    });
+  }
+  function closeCoach(){ els.coachOverlay.classList.remove("open"); }
+
+  /* ---------- barcode scanning (Vercel-only: needs the html5-qrcode CDN script + Open Food Facts, both blocked by the artifact CSP) ---------- */
+  var html5QrScanner = null, scanTargetMember = null, scanTargetHabit = null;
+  function openScanner(memberId, habitId){
+    scanTargetMember = memberId; scanTargetHabit = habitId;
+    els.scanStatus.textContent = "Point your camera at a product barcode.";
+    els.scanOverlay.classList.add("open");
+    if(typeof Html5Qrcode === "undefined"){
+      els.scanStatus.textContent = "Barcode scanning isn't available here — open this app at its Vercel link on your phone to use the camera scanner.";
+      return;
+    }
+    html5QrScanner = new Html5Qrcode("scanRegion");
+    html5QrScanner.start(
+      { facingMode: "environment" },
+      { fps: 10, qrbox: 220 },
+      onScanSuccess,
+      function(){}
+    ).catch(function(err){
+      els.scanStatus.textContent = "Couldn't access the camera: " + (err && err.message ? err.message : err);
+    });
+  }
+  function closeScanner(){
+    els.scanOverlay.classList.remove("open");
+    if(html5QrScanner){
+      var s = html5QrScanner;
+      html5QrScanner = null;
+      s.stop().catch(function(){}).then(function(){ s.clear(); });
+    }
+  }
+  function rememberScannedFood(food){
+    if(foodMatch(food.name)) return;
+    if(mode === "solo"){
+      soloState.customFoods.push(food);
+      saveSolo(soloState);
+    } else if(mode === "board"){
+      board.customFoods = board.customFoods || [];
+      board.customFoods.push(food);
+      schedulePublish();
+    }
+  }
+  function onScanSuccess(decodedText){
+    els.scanStatus.textContent = "Looking up " + decodedText + "…";
+    fetch("https://world.openfoodfacts.org/api/v2/product/" + encodeURIComponent(decodedText) + ".json")
+      .then(function(r){ return r.json(); })
+      .then(function(data){
+        if(!data || data.status !== 1 || !data.product){
+          els.scanStatus.textContent = "No product found for that barcode. Try again or enter it manually.";
+          return;
+        }
+        var p = data.product;
+        var n = p.nutriments || {};
+        var kcal100 = n["energy-kcal_100g"];
+        if(kcal100 == null && n["energy_100g"] != null) kcal100 = n["energy_100g"] / 4.184;
+        if(kcal100 == null){
+          els.scanStatus.textContent = "Found the product but it has no calorie data on Open Food Facts.";
+          return;
+        }
+        var name = (p.product_name || p.generic_name || decodedText).trim().slice(0, 60) || decodedText;
+        var food = {
+          name: name,
+          kcal100: Math.round(kcal100),
+          protein100: n["proteins_100g"] != null ? Math.round(n["proteins_100g"]) : 0,
+          carbs100: n["carbohydrates_100g"] != null ? Math.round(n["carbohydrates_100g"]) : 0,
+          serving: 100,
+          unit: "serving"
+        };
+        rememberScannedFood(food);
+        closeScanner();
+        var form = document.querySelector('.food-form[data-member="' + scanTargetMember + '"][data-habit="' + scanTargetHabit + '"]');
+        if(form){
+          var nameInput = form.querySelector('[data-role="ff-name"]');
+          var amtInput = form.querySelector('[data-role="ff-amt"]');
+          nameInput.value = name;
+          updateFoodPreview(form);
+          amtInput.focus();
+        }
+        showToast("Found: " + name);
+      })
+      .catch(function(){
+        els.scanStatus.textContent = "Lookup failed — check your connection and try again.";
+      });
+  }
 
   var MOUNTAIN_TZ = "America/Denver";
   var REMINDER_KEY = "emberstreak.reminderShown";
@@ -2221,6 +2384,10 @@
         openNutrition(t.dataset.member);
         return;
       }
+      if(action === "scanbarcode"){
+        openScanner(t.dataset.member, t.dataset.habit);
+        return;
+      }
       if(action === "edittarget"){
         var curTarget = mode === "solo" ? (soloState.calorieTarget || 2000) : ((findMember(t.dataset.member) || {}).calorieTarget || 2000);
         t.outerHTML = '<span class="food-target-edit"><input type="number" min="500" max="6000" step="50" value="' + curTarget + '" data-role="target-input"><button type="button" data-action="savetarget" data-member="' + escHTML(t.dataset.member || "") + '" data-habit="' + escHTML(t.dataset.habit) + '">Save</button></span>';
@@ -2361,6 +2528,12 @@
   els.lbOverlay.addEventListener("click", function(e){ if(e.target === els.lbOverlay) closeLeaderboard(); });
   els.nutriClose.addEventListener("click", closeNutrition);
   els.nutriOverlay.addEventListener("click", function(e){ if(e.target === els.nutriOverlay) closeNutrition(); });
+  els.coachBtn.innerHTML = ICONS.sparkle + "<span>Coach</span>";
+  els.coachBtn.addEventListener("click", openCoach);
+  els.coachClose.addEventListener("click", closeCoach);
+  els.coachOverlay.addEventListener("click", function(e){ if(e.target === els.coachOverlay) closeCoach(); });
+  els.scanClose.addEventListener("click", closeScanner);
+  els.scanOverlay.addEventListener("click", function(e){ if(e.target === els.scanOverlay) closeScanner(); });
   els.pickerAddBtn.addEventListener("click", function(){
     var chosen = SUGGESTIONS.filter(function(s){ return pickerSelected.has(s.id); })
       .map(function(s){ return { id: s.id, label: s.label, icon: s.icon, kind: s.kind }; });
@@ -2452,4 +2625,4 @@
 })();
 </script>
 
-<script type="application/json" id="boardData">{"habits":[{"id":"gym","label":"Gym Session","icon":"gym","kind":"exercise","core":true},{"id":"cardio","label":"Cardio","icon":"cardio","kind":"cardio","core":true},{"id":"calories","label":"Eat Recommended Calories","icon":"calories","kind":"food","core":true},{"id":"noPorn","label":"No Porn","icon":"shield","kind":"simple","core":true},{"id":"read","label":"Read 10 Pages","icon":"book","kind":"simple","core":true},{"id":"meditate","label":"Meditate","icon":"meditate","kind":"simple","core":true},{"id":"pray","label":"Pray","icon":"pray","kind":"simple","core":true},{"id":"water","label":"Drink 8 Glasses of Water","icon":"water","kind":"simple","core":true},{"id":"sleep7","label":"Sleep 7+ Hours","icon":"sleep","kind":"simple","core":true},{"id":"steps8k","label":"Walk 8,000 Steps","icon":"steps","kind":"simple","core":true},{"id":"noAlcohol","label":"No Alcohol","icon":"shield","kind":"simple"},{"id":"coldShower","label":"Cold Shower","icon":"water","kind":"simple"},{"id":"digitalSunset","label":"Screens Off by 10pm","icon":"sunset","kind":"simple"}],"members":[],"customFoods":[]}</script>
+<script type="application/json" id="boardData">{"habits":[{"id":"gym","label":"Gym Session","icon":"gym","kind":"exercise","core":true},{"id":"cardio","label":"Cardio","icon":"cardio","kind":"cardio","core":true},{"id":"calories","label":"Eat Recommended Calories","icon":"calories","kind":"food","core":true},{"id":"noPorn","label":"No Porn","icon":"shield","kind":"simple","core":true},{"id":"read","label":"Read 10 Pages","icon":"book","kind":"simple","core":true},{"id":"meditate","label":"Meditate","icon":"meditate","kind":"simple","core":true},{"id":"pray","label":"Pray","icon":"pray","kind":"simple","core":true},{"id":"water","label":"Drink 8 Glasses of Water","icon":"water","kind":"simple","core":true},{"id":"sleep7","label":"Sleep 7+ Hours","icon":"sleep","kind":"simple","core":true},{"id":"steps8k","label":"Walk 8,000 Steps","icon":"steps","kind":"simple","core":true}],"members":[],"customFoods":[]}</script>
