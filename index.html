@@ -1664,8 +1664,62 @@
       schedulePublish();
     }
   }
-  function onPhotoFoodSelected(file){
-    if(!file) return;
+  function applyScannedFood(food, toastSuffix){
+    rememberScannedFood(food);
+    var form = document.querySelector('.food-form[data-member="' + photoTargetMember + '"][data-habit="' + photoTargetHabit + '"]');
+    if(form){
+      var nameInput = form.querySelector('[data-role="ff-name"]');
+      var amtInput = form.querySelector('[data-role="ff-amt"]');
+      var eaBtn = form.querySelector('.unit-toggle button[data-unit="ea"]');
+      nameInput.value = food.name;
+      amtInput.value = "1";
+      if(eaBtn) eaBtn.click();
+      updateFoodPreview(form);
+      amtInput.focus();
+    }
+    showToast("Found: " + food.name + (toastSuffix || ""));
+  }
+
+  /* Native, single-image barcode read — far more reliable than a live video scanner
+     (no continuous-frame decoding, no camera-stream quirks). Unsupported browsers
+     (notably iOS Safari at the time this was written) just skip straight to the
+     AI vision reader below with no behavior change. */
+  function tryDetectBarcode(file){
+    if(typeof BarcodeDetector === "undefined") return Promise.resolve(null);
+    var formats = ["qr_code", "ean_13", "ean_8", "upc_a", "upc_e", "code_128", "code_39"];
+    return createImageBitmap(file).then(function(bitmap){
+      var detector = new BarcodeDetector({ formats: formats });
+      return detector.detect(bitmap).then(function(codes){
+        return codes && codes.length ? codes[0].rawValue : null;
+      });
+    }).catch(function(){ return null; });
+  }
+  function lookupOpenFoodFacts(code){
+    if(!/^\d{6,14}$/.test(code)) return Promise.resolve(null);
+    return fetch("https://world.openfoodfacts.org/api/v2/product/" + encodeURIComponent(code) + ".json")
+      .then(function(r){ return r.json(); })
+      .then(function(data){
+        if(!data || data.status !== 1 || !data.product) return null;
+        var p = data.product;
+        var n = p.nutriments || {};
+        var kcal100 = n["energy-kcal_100g"];
+        if(kcal100 == null && n["energy_100g"] != null) kcal100 = n["energy_100g"] / 4.184;
+        if(kcal100 == null) return null;
+        var name = (p.product_name || p.generic_name || code).trim().slice(0, 60) || code;
+        var servingGrams = p.serving_quantity ? Math.round(Number(p.serving_quantity)) : null;
+        var servingLabel = p.serving_size ? String(p.serving_size).replace(/\s*\(?\d+(\.\d+)?\s*g\)?/i, "").trim() : "";
+        return {
+          name: name,
+          kcal100: Math.round(kcal100),
+          protein100: n["proteins_100g"] != null ? Math.round(n["proteins_100g"]) : 0,
+          carbs100: n["carbohydrates_100g"] != null ? Math.round(n["carbohydrates_100g"]) : 0,
+          serving: servingGrams || 100,
+          unit: servingLabel || "serving"
+        };
+      })
+      .catch(function(){ return null; });
+  }
+  function readLabelWithVision(file){
     showToast("Reading the label…");
     var reader = new FileReader();
     reader.onload = function(){
@@ -1686,24 +1740,28 @@
           name: data.name, kcal100: data.kcal100, protein100: data.protein100, carbs100: data.carbs100,
           serving: data.servingGrams, unit: data.servingLabel
         };
-        rememberScannedFood(food);
-        var form = document.querySelector('.food-form[data-member="' + photoTargetMember + '"][data-habit="' + photoTargetHabit + '"]');
-        if(form){
-          var nameInput = form.querySelector('[data-role="ff-name"]');
-          var amtInput = form.querySelector('[data-role="ff-amt"]');
-          var eaBtn = form.querySelector('.unit-toggle button[data-unit="ea"]');
-          nameInput.value = data.name;
-          amtInput.value = "1";
-          if(eaBtn) eaBtn.click();
-          updateFoodPreview(form);
-          amtInput.focus();
-        }
-        showToast("Found: " + data.name + " (" + data.servingLabel + " ≈ " + data.servingGrams + "g)");
+        applyScannedFood(food, " (" + data.servingLabel + " ≈ " + data.servingGrams + "g)");
       }).catch(function(){
         showToast("Photo lookup isn't available here — this only works on the Vercel deployment with an Anthropic API key configured.");
       });
     };
     reader.readAsDataURL(file);
+  }
+  function onPhotoFoodSelected(file){
+    if(!file) return;
+    showToast("Checking for a barcode…");
+    tryDetectBarcode(file).then(function(code){
+      if(!code) return null;
+      return lookupOpenFoodFacts(code);
+    }).then(function(food){
+      if(food){
+        applyScannedFood(food, " (barcode)");
+      } else {
+        readLabelWithVision(file);
+      }
+    }).catch(function(){
+      readLabelWithVision(file);
+    });
   }
 
   var MOUNTAIN_TZ = "America/Denver";
