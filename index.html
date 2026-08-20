@@ -749,6 +749,7 @@
      used with weight + duration to estimate calories burned. Rough estimates only. */
   var GYM_TYPES = ["Lifting Weights", "Pilates", "HIIT Class"];
   var GYM_MET = { "Lifting Weights": 5.0, "Pilates": 3.0, "HIIT Class": 8.0 };
+  var MUSCLE_GROUPS = ["Abs", "Arms", "Legs", "Shoulders"];
   var CARDIO_MET = { Run: 8, Walk: 3.5, Hike: 6, Bike: 7.5, Swim: 6, Pickleball: 5, Soccer: 7 };
   /* generic volume→weight approximation for measuring-cup style logging — a
      rough estimate (like the oz conversion already was), not food-specific density */
@@ -1205,9 +1206,10 @@
           var intensityMult = entry.intensity ? (INTENSITY_MULT[entry.intensity] || 1) : 1;
           var burn = minutes ? estimateBurn(member, (isLegacy ? 5 : (meta.met[entry.type] || 5)) * intensityMult, minutes) : null;
           var intensityLabel = entry.intensity ? entry.intensity.charAt(0).toUpperCase() + entry.intensity.slice(1) : "";
+          var focusLabel = entry.focus ? " · " + entry.focus : "";
           html += '<div class="log-row"><span class="lr-name">' + escHTML(label) + '</span>' +
             (isLegacy && entry.detail ? '<span class="lr-detail">' + escHTML(entry.detail) + '</span>' : "") +
-            (!isLegacy ? '<span class="lr-detail">' + entry.duration + ' min' + (intensityLabel ? " · " + intensityLabel : "") + '</span>' : "") +
+            (!isLegacy ? '<span class="lr-detail">' + entry.duration + ' min' + (intensityLabel ? " · " + intensityLabel : "") + escHTML(focusLabel) + '</span>' : "") +
             (burn != null ? '<span class="lr-kcal">~' + burn + ' kcal</span>' : "") +
             (isMine ? '<button class="lr-x" type="button" data-action="rmlog" data-member="' + escHTML(member.id) + '" data-habit="' + escHTML(habit.id) + '" data-idx="' + idx + '">' + ICONS.close + '</button>' : "") +
             '</div>';
@@ -1223,10 +1225,14 @@
         html += '<div class="chip-group" data-role="type-group">' + meta.types.map(function(ty, i){
           return '<button type="button" class="chip' + (i === 0 ? " selected" : "") + '" data-action="pickchip" data-value="' + escHTML(ty) + '">' + escHTML(ty) + '</button>';
         }).join("") + '</div>';
-        if(habit.kind === "cardio"){
-          html += '<div class="chip-section-label">Intensity</div>';
-          html += '<div class="chip-group chip-group-segmented" data-role="intensity-group">' + INTENSITY_LEVELS.map(function(lv, i){
-            return '<button type="button" class="chip' + (lv.id === "medium" ? " selected" : "") + '" data-action="pickchip" data-value="' + lv.id + '">' + lv.label + '</button>';
+        html += '<div class="chip-section-label">Intensity</div>';
+        html += '<div class="chip-group chip-group-segmented" data-role="intensity-group">' + INTENSITY_LEVELS.map(function(lv, i){
+          return '<button type="button" class="chip' + (lv.id === "medium" ? " selected" : "") + '" data-action="pickchip" data-value="' + lv.id + '">' + lv.label + '</button>';
+        }).join("") + '</div>';
+        if(habit.kind === "exercise"){
+          html += '<div class="chip-section-label">Focus</div>';
+          html += '<div class="chip-group" data-role="focus-group">' + MUSCLE_GROUPS.map(function(mg, i){
+            return '<button type="button" class="chip" data-action="pickchip" data-value="' + mg + '">' + mg + '</button>';
           }).join("") + '</div>';
         }
         html += '<button class="log-submit" type="button" data-action="addsessionlog" data-member="' + escHTML(member.id) + '" data-habit="' + escHTML(habit.id) + '">' + ICONS.plus + '<span>Log session</span></button>';
@@ -1279,8 +1285,9 @@
       var log = rec._log[h.id] || [];
       if(h.kind === "exercise"){
         log.forEach(function(e){
-          if(e.type && e.duration){ var b = estimateBurn(member, GYM_MET[e.type] || 5, e.duration); if(b) total += b; }
-          else if(e.minutes){ var b2 = estimateBurn(member, 5, e.minutes); if(b2) total += b2; }
+          var mult = e.intensity ? (INTENSITY_MULT[e.intensity] || 1) : 1;
+          if(e.type && e.duration){ var b = estimateBurn(member, (GYM_MET[e.type] || 5) * mult, e.duration); if(b) total += b; }
+          else if(e.minutes){ var b2 = estimateBurn(member, 5 * mult, e.minutes); if(b2) total += b2; }
         });
       } else if(h.kind === "cardio"){
         log.forEach(function(e){
@@ -1339,7 +1346,7 @@
     var viewedEntry = (member.days[viewedDate] && typeof member.days[viewedDate].weight === "number")
       ? { date: viewedDate, value: member.days[viewedDate].weight } : null;
     var prior = priorWeightEntry(member.days, viewedDate);
-    var todayVal = viewedEntry ? viewedEntry.value : "";
+    var todayVal = viewedEntry ? viewedEntry.value : (prior ? prior.value : "");
     var deltaHTML;
     if(viewedEntry && prior){
       var diff = viewedEntry.value - prior.value;
@@ -1854,13 +1861,12 @@
     els.rosterLabel.textContent = mode === "solo" ? "Today's habits — tap to check off" : "The board — tap your card to expand";
     els.addHabitBtn.innerHTML = ICONS.plus + "<span>Add habit</span>";
 
+    els.inviteBtn.hidden = false;
+    els.inviteBtn.innerHTML = ICONS.share + "<span>Invite friends</span>";
     if(mode === "board"){
-      els.inviteBtn.hidden = false;
-      els.inviteBtn.innerHTML = ICONS.share + "<span>Invite friends</span>";
       els.leaderboardBtn.hidden = false;
       els.leaderboardBtn.innerHTML = ICONS.trophy + "<span>Leaderboard</span>";
     } else {
-      els.inviteBtn.hidden = true;
       els.leaderboardBtn.hidden = true;
     }
 
@@ -1997,13 +2003,14 @@
     if(rec && rec._log && rec._log[habitId]) rec._log[habitId].splice(idx, 1);
   }
 
-  function applyAddSessionLog(days, habitId, type, duration, intensity){
+  function applyAddSessionLog(days, habitId, type, duration, intensity, focus){
     return withTracking(days, function(){
       var rec = ensureDay(days, viewedDate);
       if(!rec._log) rec._log = {};
       if(!rec._log[habitId]) rec._log[habitId] = [];
       var entry = { type: type, duration: duration };
       if(intensity) entry.intensity = intensity;
+      if(focus) entry.focus = focus;
       rec._log[habitId].push(entry);
       if(!rec[habitId]) rec[habitId] = true;
       return {};
@@ -2062,8 +2069,8 @@
     saveSolo(soloState);
     render();
   }
-  function soloAddSessionLog(habitId, type, duration, intensity){
-    var res = applyAddSessionLog(soloState.days, habitId, type, duration, intensity);
+  function soloAddSessionLog(habitId, type, duration, intensity, focus){
+    var res = applyAddSessionLog(soloState.days, habitId, type, duration, intensity, focus);
     saveSolo(soloState);
     render();
     afterToggleFeedback(res, soloState.days);
@@ -2200,11 +2207,11 @@
     render();
     schedulePublish();
   }
-  function boardAddSessionLog(memberId, habitId, type, duration, intensity){
+  function boardAddSessionLog(memberId, habitId, type, duration, intensity, focus){
     if(!me || memberId !== me.id) return;
     var member = findMember(memberId);
     if(!member) return;
-    var res = applyAddSessionLog(member.days, habitId, type, duration, intensity);
+    var res = applyAddSessionLog(member.days, habitId, type, duration, intensity, focus);
     render();
     afterToggleFeedback(res, member.days);
     schedulePublish();
@@ -2376,11 +2383,13 @@
         var durBtn = panel.querySelector('[data-role="duration-group"] .chip.selected');
         var typeBtn = panel.querySelector('[data-role="type-group"] .chip.selected');
         var intensityBtn = panel.querySelector('[data-role="intensity-group"] .chip.selected');
+        var focusBtn = panel.querySelector('[data-role="focus-group"] .chip.selected');
         var duration = durBtn ? parseInt(durBtn.dataset.value, 10) : 30;
         var type = typeBtn ? typeBtn.dataset.value : "";
         var intensity = intensityBtn ? intensityBtn.dataset.value : null;
-        if(mode === "solo") soloAddSessionLog(t.dataset.habit, type, duration, intensity);
-        else if(mode === "board") boardAddSessionLog(t.dataset.member, t.dataset.habit, type, duration, intensity);
+        var focus = focusBtn ? focusBtn.dataset.value : null;
+        if(mode === "solo") soloAddSessionLog(t.dataset.habit, type, duration, intensity, focus);
+        else if(mode === "board") boardAddSessionLog(t.dataset.member, t.dataset.habit, type, duration, intensity, focus);
         return;
       }
       if(action === "unit"){
@@ -2718,9 +2727,16 @@
 
   els.inviteBtn.addEventListener("click", function(){
     var url = location.href;
+    var name = (mode === "solo" ? soloState.name : (me && me.name)) || "";
+    var shareText = (name ? name + " wants to keep you accountable! " : "") + "Join Accountability Partner.";
+    if(navigator.share){
+      navigator.share({ title: "Accountability Partner", text: shareText, url: url }).catch(function(){});
+      return;
+    }
+    var copyMsg = mode === "board" ? "Link copied — friends need “can edit” access to join in" : "Link copied — send it to a friend";
     if(navigator.clipboard && navigator.clipboard.writeText){
       navigator.clipboard.writeText(url).then(function(){
-        showToast("Link copied — friends need “can edit” access to join in");
+        showToast(copyMsg);
       }).catch(function(){ promptCopy(url); });
     } else {
       promptCopy(url);
