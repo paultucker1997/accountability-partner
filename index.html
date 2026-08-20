@@ -403,7 +403,12 @@
   .invite-copy{ display: none; margin-top: 8px; }
   .invite-copy.show{ display: flex; gap: 6px; }
 
+  .chip-section-label{ font-size: 10px; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-faint); font-weight: 700; margin: 10px 0 6px; }
+  .chip-section-label:first-of-type{ margin-top: 4px; padding-top: 10px; border-top: 1px solid var(--line); }
   .chip-group{ display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+  .chip-group-segmented{ display: flex; flex-wrap: nowrap; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; gap: 0; }
+  .chip-group-segmented .chip{ flex: 1; border-radius: 0; border: none; border-right: 1px solid var(--line); text-align: center; }
+  .chip-group-segmented .chip:last-child{ border-right: none; }
   .chip{ background: var(--surface-2); border: 1px solid var(--line); color: var(--ink-dim); border-radius: 99px; padding: 6px 12px; font-size: 11.5px; font-weight: 700; cursor: pointer; -webkit-tap-highlight-color: transparent; }
   .chip.selected{ background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
   .log-submit{ background: var(--accent); border: none; color: var(--accent-ink); border-radius: 8px; padding: 8px 14px; font-size: 12px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
@@ -439,6 +444,13 @@
   .food-row .fr-x:hover{ color: var(--bad); background: var(--surface); }
   .food-row .fr-x svg{ width: 10px; height: 10px; }
   .food-empty{ font-size: 12px; color: var(--ink-faint); margin: 0 0 12px; }
+  .food-row-edit{ display: flex; flex-direction: column; gap: 8px; background: var(--surface-2); border-radius: 9px; padding: 10px; }
+  .food-row-edit .fre-name{ font-weight: 700; font-size: 12.5px; }
+  .food-row-edit .food-form-row{ margin: 0; }
+  .food-row-edit .ff-amt{ background: var(--surface); border: 1px solid var(--line); color: var(--ink); border-radius: 8px; padding: 8px 10px; font-size: 12.5px; flex: 1; min-width: 0; }
+  .food-row-edit .unit-toggle{ background: var(--surface); }
+  .food-row-edit .unit-toggle button{ background: var(--surface); }
+  .fre-actions{ display: flex; gap: 8px; }
   .food-form{ display: flex; flex-direction: column; gap: 8px; padding-top: 12px; border-top: 1px solid var(--line); }
   .food-form-row{ display: flex; gap: 6px; flex-wrap: wrap; }
   .food-form input{ background: var(--surface-2); border: 1px solid var(--line); color: var(--ink); border-radius: 8px; padding: 8px 10px; font-size: 12.5px; min-width: 0; }
@@ -514,6 +526,16 @@
   }
   .reminder-empty svg{ width: 18px; height: 18px; }
 
+  .nutri-rows{ display: flex; flex-direction: column; gap: 14px; margin-bottom: 16px; }
+  .nutri-row-top{ display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 5px; }
+  .nutri-label{ font-size: 13px; font-weight: 700; }
+  .nutri-val{ font-family: "JetBrains Mono", monospace; font-size: 12px; color: var(--ink-dim); }
+  .nutri-dv{ color: var(--ink-faint); }
+  .nutri-bar{ height: 7px; border-radius: 99px; background: var(--line); overflow: hidden; }
+  .nutri-bar-fill{ height: 100%; border-radius: 99px; background: var(--gold); transition: width .4s ease; }
+  .nutri-empty{ font-size: 13px; color: var(--ink-dim); margin: 0 0 14px; }
+  .nutri-note{ font-size: 11px; color: var(--ink-faint); margin: 0 0 8px; }
+
   @media (prefers-reduced-motion: reduce){
     .habit-main, .ring-fill, .xp-fill, .toast, .chev{ transition: none !important; }
     .habit.pulse .habit-check{ animation: none !important; }
@@ -580,6 +602,16 @@
   </div>
 </div>
 
+<div class="modal-overlay" id="nutriOverlay">
+  <div class="modal">
+    <div class="modal-head">
+      <h2 id="nutriTitle">Nutrition</h2>
+      <button class="modal-close" id="nutriClose" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"></line><line x1="18" y1="6" x2="6" y2="18"></line></svg></button>
+    </div>
+    <div id="nutriBody"></div>
+  </div>
+</div>
+
 <div class="toast" id="toast"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2c2.6 3.4-1.7 4.6-1.7 8.2a3.7 3.7 0 1 0 7.4 0c0-1.8-.9-2.8-1.8-4.4.9 2.7-.9 3.6-1.8 1.8.9-1.8-.9-2.7-1.9-5.6z"/></svg><span id="toastText"></span></div>
 
 <script>
@@ -624,6 +656,8 @@
     star: svg('<circle cx="12" cy="12" r="7"></circle><circle cx="12" cy="12" r="2.4"></circle>'),
     plus: svg('<line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line>'),
     close: svg('<line x1="6" y1="6" x2="18" y2="18"></line><line x1="18" y1="6" x2="6" y2="18"></line>'),
+    pencil: svg('<path d="M14.5 4.5 19.5 9.5 8 21H3v-5Z"></path><line x1="13" y1="6" x2="18" y2="11"></line>'),
+    leaf: svg('<path d="M5 19c9 0 14-5 14-14C10 5 5 10 5 19Z"></path><path d="M5 19c3-6 6-9 12-12"></path>'),
     share: svg('<path d="M12 15V4"></path><path d="M8 8l4-4 4 4"></path><path d="M5 13v5a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-5"></path>'),
     lock: svg('<rect x="5" y="11" width="14" height="9" rx="2"></rect><path d="M8 11V8a4 4 0 0 1 8 0v3"></path>'),
     trophy: svg('<path d="M7 3h10v6a5 5 0 0 1-10 0V3Z"></path><path d="M7 5H4a3 3 0 0 0 3 4.5"></path><path d="M17 5h3a3 3 0 0 1-3 4.5"></path><line x1="12" y1="14" x2="12" y2="18"></line><line x1="9" y1="21" x2="15" y2="21"></line>'),
@@ -650,14 +684,22 @@
   ];
   var CORE_IDS = DEFAULT_HABITS.map(function(h){ return h.id; });
 
-  var CARDIO_TYPES = ["Run", "Walk", "Hike", "Bike", "Swim"];
+  var CARDIO_TYPES = ["Run", "Walk", "Hike", "Bike", "Swim", "Pickleball", "Soccer"];
   var CARDIO_DURATIONS = [15, 30, 45, 60, 75, 90];
+  /* intensity scales the type's base MET up or down — lets "Run" cover an easy
+     jog or an all-out sprint instead of needing a separate MET per effort level */
+  var INTENSITY_LEVELS = [
+    { id: "light", label: "Light", mult: 0.7 },
+    { id: "medium", label: "Medium", mult: 1.0 },
+    { id: "hard", label: "Hard", mult: 1.35 }
+  ];
+  var INTENSITY_MULT = { light: 0.7, medium: 1.0, hard: 1.35 };
 
   /* MET (metabolic equivalent) values, Compendium of Physical Activities —
      used with weight + duration to estimate calories burned. Rough estimates only. */
   var GYM_TYPES = ["Lifting Weights", "Pilates", "HIIT Class"];
   var GYM_MET = { "Lifting Weights": 5.0, "Pilates": 3.0, "HIIT Class": 8.0 };
-  var CARDIO_MET = { Run: 8, Walk: 3.5, Hike: 6, Bike: 7.5, Swim: 6 };
+  var CARDIO_MET = { Run: 8, Walk: 3.5, Hike: 6, Bike: 7.5, Swim: 6, Pickleball: 5, Soccer: 7 };
   /* generic volume→weight approximation for measuring-cup style logging — a
      rough estimate (like the oz conversion already was), not food-specific density */
   var UNIT_GRAMS = { g: 1, oz: 28.3495, cup: 240, tbsp: 15, tsp: 5 };
@@ -774,6 +816,65 @@
     { name: "Onion Rings", kcal100: 411, protein100: 5, carbs100: 45, serving: 100, unit: "serving" }, { name: "Milkshake", kcal100: 246, protein100: 6, carbs100: 36, serving: 100, unit: "serving" },
     { name: "Protein Shake (RTD)", kcal100: 31, protein100: 6, carbs100: 1, serving: 325, unit: "bottle" }
   ];
+
+  /* Micronutrient data (per 100g) for the most commonly logged foods — a curated
+     subset, not the full COMMON_FOODS list, since we won't fabricate lab-grade
+     values for every item. Rough estimates, consistent with the rest of the app. */
+  var MICRO_DATA = {
+    "Chicken Breast": { fiber100: 0, sugar100: 0, sodium100: 74, potassium100: 256, calcium100: 15, iron100: 1 },
+    "Chicken Thigh": { fiber100: 0, sugar100: 0, sodium100: 84, potassium100: 230, calcium100: 12, iron100: 1.3 },
+    "Ground Beef (85% lean)": { fiber100: 0, sugar100: 0, sodium100: 66, potassium100: 270, calcium100: 18, iron100: 2.6 },
+    "Salmon": { fiber100: 0, sugar100: 0, sodium100: 59, potassium100: 384, calcium100: 9, iron100: 0.8 },
+    "Tuna (canned in water)": { fiber100: 0, sugar100: 0, sodium100: 247, potassium100: 237, calcium100: 11, iron100: 1 },
+    "Shrimp": { fiber100: 0, sugar100: 0, sodium100: 111, potassium100: 259, calcium100: 70, iron100: 0.5 },
+    "Eggs": { fiber100: 0, sugar100: 1.1, sodium100: 124, potassium100: 126, calcium100: 56, iron100: 1.8 },
+    "Egg Whites": { fiber100: 0, sugar100: 0.7, sodium100: 166, potassium100: 163, calcium100: 7, iron100: 0.1 },
+    "Turkey Breast": { fiber100: 0, sugar100: 0, sodium100: 104, potassium100: 298, calcium100: 15, iron100: 1.4 },
+    "Pork Chop": { fiber100: 0, sugar100: 0, sodium100: 57, potassium100: 423, calcium100: 19, iron100: 0.9 },
+    "Greek Yogurt (plain)": { fiber100: 0, sugar100: 3.6, sodium100: 36, potassium100: 141, calcium100: 110, iron100: 0.1 },
+    "Cottage Cheese": { fiber100: 0, sugar100: 3.4, sodium100: 364, potassium100: 104, calcium100: 83, iron100: 0.1 },
+    "Whey Protein Powder": { fiber100: 1, sugar100: 4, sodium100: 150, potassium100: 200, calcium100: 130, iron100: 1 },
+    "White Rice (cooked)": { fiber100: 0.4, sugar100: 0.1, sodium100: 1, potassium100: 35, calcium100: 10, iron100: 0.2 },
+    "Brown Rice (cooked)": { fiber100: 1.8, sugar100: 0.4, sodium100: 5, potassium100: 86, calcium100: 10, iron100: 0.6 },
+    "Oats (dry)": { fiber100: 10.6, sugar100: 1, sodium100: 2, potassium100: 429, calcium100: 54, iron100: 4.7 },
+    "Quinoa (cooked)": { fiber100: 2.8, sugar100: 0.9, sodium100: 7, potassium100: 172, calcium100: 17, iron100: 1.5 },
+    "Whole Wheat Bread": { fiber100: 6.8, sugar100: 5.7, sodium100: 472, potassium100: 248, calcium100: 125, iron100: 2.5 },
+    "Sweet Potato": { fiber100: 3, sugar100: 4.2, sodium100: 55, potassium100: 337, calcium100: 30, iron100: 0.6 },
+    "Potato (baked)": { fiber100: 2.2, sugar100: 1.2, sodium100: 10, potassium100: 535, calcium100: 15, iron100: 1.1 },
+    "Banana": { fiber100: 2.6, sugar100: 12, sodium100: 1, potassium100: 358, calcium100: 5, iron100: 0.3 },
+    "Apple": { fiber100: 2.4, sugar100: 10, sodium100: 1, potassium100: 107, calcium100: 6, iron100: 0.1 },
+    "Orange": { fiber100: 2.4, sugar100: 9, sodium100: 0, potassium100: 181, calcium100: 40, iron100: 0.1 },
+    "Strawberries": { fiber100: 2, sugar100: 4.9, sodium100: 1, potassium100: 153, calcium100: 16, iron100: 0.4 },
+    "Blueberries": { fiber100: 2.4, sugar100: 10, sodium100: 1, potassium100: 77, calcium100: 6, iron100: 0.3 },
+    "Avocado": { fiber100: 6.7, sugar100: 0.7, sodium100: 7, potassium100: 485, calcium100: 12, iron100: 0.6 },
+    "Broccoli": { fiber100: 2.6, sugar100: 1.7, sodium100: 33, potassium100: 316, calcium100: 47, iron100: 0.7 },
+    "Spinach": { fiber100: 2.2, sugar100: 0.4, sodium100: 79, potassium100: 558, calcium100: 99, iron100: 2.7 },
+    "Kale": { fiber100: 2, sugar100: 0.8, sodium100: 38, potassium100: 348, calcium100: 150, iron100: 1.5 },
+    "Carrots": { fiber100: 2.8, sugar100: 4.7, sodium100: 69, potassium100: 320, calcium100: 33, iron100: 0.3 },
+    "Bell Pepper": { fiber100: 2.1, sugar100: 4.2, sodium100: 4, potassium100: 211, calcium100: 7, iron100: 0.4 },
+    "Tomato": { fiber100: 1.2, sugar100: 2.6, sodium100: 5, potassium100: 237, calcium100: 10, iron100: 0.3 },
+    "Whole Milk": { fiber100: 0, sugar100: 5, sodium100: 43, potassium100: 150, calcium100: 113, iron100: 0 },
+    "Skim Milk": { fiber100: 0, sugar100: 5, sodium100: 42, potassium100: 156, calcium100: 122, iron100: 0 },
+    "Cheddar Cheese": { fiber100: 0, sugar100: 0.5, sodium100: 621, potassium100: 98, calcium100: 721, iron100: 0.7 },
+    "Peanut Butter": { fiber100: 6, sugar100: 9, sodium100: 459, potassium100: 649, calcium100: 43, iron100: 1.9 },
+    "Almonds": { fiber100: 12.5, sugar100: 4.4, sodium100: 1, potassium100: 733, calcium100: 269, iron100: 3.7 },
+    "Walnuts": { fiber100: 6.7, sugar100: 2.6, sodium100: 2, potassium100: 441, calcium100: 98, iron100: 2.9 },
+    "Cashews": { fiber100: 3.3, sugar100: 5.9, sodium100: 12, potassium100: 565, calcium100: 37, iron100: 6.7 },
+    "Black Beans (cooked)": { fiber100: 8.7, sugar100: 0.3, sodium100: 1, potassium100: 355, calcium100: 27, iron100: 2.1 },
+    "Chickpeas (cooked)": { fiber100: 7.6, sugar100: 4.8, sodium100: 7, potassium100: 291, calcium100: 49, iron100: 2.9 },
+    "Lentils (cooked)": { fiber100: 7.9, sugar100: 1.8, sodium100: 2, potassium100: 369, calcium100: 19, iron100: 3.3 },
+    "Edamame": { fiber100: 5.2, sugar100: 2.2, sodium100: 6, potassium100: 436, calcium100: 63, iron100: 2.3 },
+    "Hummus": { fiber100: 6, sugar100: 0.3, sodium100: 379, potassium100: 228, calcium100: 38, iron100: 1.6 },
+    "Dark Chocolate": { fiber100: 11, sugar100: 24, sodium100: 20, potassium100: 715, calcium100: 73, iron100: 11.9 },
+    "Pizza (cheese slice)": { fiber100: 2.3, sugar100: 3.8, sodium100: 598, potassium100: 172, calcium100: 195, iron100: 1.6 },
+    "Hamburger": { fiber100: 1.5, sugar100: 4, sodium100: 450, potassium100: 230, calcium100: 80, iron100: 2.2 },
+    "French Fries": { fiber100: 2.9, sugar100: 0.3, sodium100: 210, potassium100: 542, calcium100: 12, iron100: 0.7 },
+    "Protein Bar": { fiber100: 6, sugar100: 20, sodium100: 200, potassium100: 170, calcium100: 150, iron100: 3 }
+  };
+  /* daily-value reference points for the %DV bars — standard FDA reference intakes */
+  var MICRO_DV = { fiber: 28, sugar: 50, sodium: 2300, potassium: 4700, calcium: 1000, iron: 18 };
+  var MICRO_LABELS = { fiber: "Fiber", sugar: "Sugar", sodium: "Sodium", potassium: "Potassium", calcium: "Calcium", iron: "Iron" };
+  var MICRO_UNITS = { fiber: "g", sugar: "g", sodium: "mg", potassium: "mg", calcium: "mg", iron: "mg" };
 
   var SUGGESTIONS = [
     { id: "stretchMob", label: "Stretch / Mobility", icon: "stretch", kind: "simple" },
@@ -926,6 +1027,10 @@
     lbClose: document.getElementById("lbClose"),
     lbTitle: document.getElementById("lbTitle"),
     lbBody: document.getElementById("lbBody"),
+    nutriOverlay: document.getElementById("nutriOverlay"),
+    nutriClose: document.getElementById("nutriClose"),
+    nutriTitle: document.getElementById("nutriTitle"),
+    nutriBody: document.getElementById("nutriBody"),
     readonlyBanner: document.getElementById("readonlyBanner"),
     joinCard: document.getElementById("joinCard"),
     rosterLabel: document.getElementById("rosterLabel"),
@@ -1036,10 +1141,12 @@
           var isLegacy = !entry.type;
           var label = isLegacy ? entry.name : entry.type;
           var minutes = isLegacy ? entry.minutes : entry.duration;
-          var burn = minutes ? estimateBurn(member, isLegacy ? 5 : (meta.met[entry.type] || 5), minutes) : null;
+          var intensityMult = entry.intensity ? (INTENSITY_MULT[entry.intensity] || 1) : 1;
+          var burn = minutes ? estimateBurn(member, (isLegacy ? 5 : (meta.met[entry.type] || 5)) * intensityMult, minutes) : null;
+          var intensityLabel = entry.intensity ? entry.intensity.charAt(0).toUpperCase() + entry.intensity.slice(1) : "";
           html += '<div class="log-row"><span class="lr-name">' + escHTML(label) + '</span>' +
             (isLegacy && entry.detail ? '<span class="lr-detail">' + escHTML(entry.detail) + '</span>' : "") +
-            (!isLegacy ? '<span class="lr-detail">' + entry.duration + ' min</span>' : "") +
+            (!isLegacy ? '<span class="lr-detail">' + entry.duration + ' min' + (intensityLabel ? " · " + intensityLabel : "") + '</span>' : "") +
             (burn != null ? '<span class="lr-kcal">~' + burn + ' kcal</span>' : "") +
             (isMine ? '<button class="lr-x" type="button" data-action="rmlog" data-member="' + escHTML(member.id) + '" data-habit="' + escHTML(habit.id) + '" data-idx="' + idx + '">' + ICONS.close + '</button>' : "") +
             '</div>';
@@ -1047,12 +1154,20 @@
       }
       html += '</div>';
       if(isMine){
+        html += '<div class="chip-section-label">Duration</div>';
         html += '<div class="chip-group" data-role="duration-group">' + CARDIO_DURATIONS.map(function(d, i){
           return '<button type="button" class="chip' + (d === 30 ? " selected" : "") + '" data-action="pickchip" data-value="' + d + '">' + d + ' min</button>';
         }).join("") + '</div>';
+        html += '<div class="chip-section-label">' + (habit.kind === "cardio" ? "Activity" : "Type") + '</div>';
         html += '<div class="chip-group" data-role="type-group">' + meta.types.map(function(ty, i){
           return '<button type="button" class="chip' + (i === 0 ? " selected" : "") + '" data-action="pickchip" data-value="' + escHTML(ty) + '">' + escHTML(ty) + '</button>';
         }).join("") + '</div>';
+        if(habit.kind === "cardio"){
+          html += '<div class="chip-section-label">Intensity</div>';
+          html += '<div class="chip-group chip-group-segmented" data-role="intensity-group">' + INTENSITY_LEVELS.map(function(lv, i){
+            return '<button type="button" class="chip' + (lv.id === "medium" ? " selected" : "") + '" data-action="pickchip" data-value="' + lv.id + '">' + lv.label + '</button>';
+          }).join("") + '</div>';
+        }
         html += '<button class="log-submit" type="button" data-action="addsessionlog" data-member="' + escHTML(member.id) + '" data-habit="' + escHTML(habit.id) + '">' + ICONS.plus + '<span>Log session</span></button>';
       }
       html += '</div>';
@@ -1102,7 +1217,11 @@
           else if(e.minutes){ var b2 = estimateBurn(member, 5, e.minutes); if(b2) total += b2; }
         });
       } else if(h.kind === "cardio"){
-        log.forEach(function(e){ var b = estimateBurn(member, CARDIO_MET[e.type] || 6, e.duration); if(b) total += b; });
+        log.forEach(function(e){
+          var mult = e.intensity ? (INTENSITY_MULT[e.intensity] || 1) : 1;
+          var b = estimateBurn(member, (CARDIO_MET[e.type] || 6) * mult, e.duration);
+          if(b) total += b;
+        });
       }
     });
     return total;
@@ -1152,6 +1271,38 @@
     for(var i = 0; i < all.length; i++){ if(all[i].name.toLowerCase() === n) return all[i]; }
     return null;
   }
+  function computeMicros(name, grams){
+    var micro = MICRO_DATA[name];
+    if(!micro) return null;
+    var out = {};
+    var any = false;
+    Object.keys(MICRO_LABELS).forEach(function(k){
+      var per100 = micro[k + "100"];
+      if(per100 != null){
+        out[k] = Math.round(per100 * grams / 100 * 10) / 10;
+        any = true;
+      }
+    });
+    return any ? out : null;
+  }
+
+  function computeMatchedNutrition(match, famt, funit){
+    var kcal, protein = 0, carbs = 0, eaUnit = null, grams;
+    if(funit === "ea" && match.serving){
+      grams = famt * match.serving;
+      kcal = Math.round(match.kcal100 * grams / 100);
+      if(match.protein100) protein = Math.round(match.protein100 * grams / 100);
+      if(match.carbs100) carbs = Math.round(match.carbs100 * grams / 100);
+      eaUnit = match.unit;
+    } else {
+      grams = famt * (UNIT_GRAMS[funit] || 1);
+      kcal = Math.round(match.kcal100 * grams / 100);
+      if(match.protein100) protein = Math.round(match.protein100 * grams / 100);
+      if(match.carbs100) carbs = Math.round(match.carbs100 * grams / 100);
+    }
+    return { kcal: kcal, protein: protein, carbs: carbs, eaUnit: eaUnit, micro: computeMicros(match.name, grams) };
+  }
+
   function foodAmountLabel(entry){
     if(entry.unit === "ea") return fmtAmount(entry.amount) + " " + (entry.eaUnit || "ea");
     if(entry.unit === "cup") return fmtAmount(entry.amount) + " " + (entry.amount > 1 ? "cups" : "cup");
@@ -1181,6 +1332,29 @@
     '</div>';
   }
 
+  function foodEditRowHTML(memberId, habitId, entry, idx){
+    var match = foodMatch(entry.name);
+    var units = ["g", "oz", "cup", "tbsp", "tsp", "ea"];
+    var showQty = ["ea", "cup", "tbsp", "tsp"].indexOf(entry.unit) !== -1;
+    return '<div class="food-row-edit" data-member="' + escHTML(memberId) + '" data-habit="' + escHTML(habitId) + '" data-idx="' + idx + '" data-name="' + escHTML(entry.name) + '">' +
+      '<div class="fre-name">' + escHTML(entry.name) + '</div>' +
+      '<div class="food-form-row">' +
+        '<input class="ff-amt" type="text" inputmode="decimal" data-role="fre-amt" value="' + entry.amount + '">' +
+        '<div class="unit-toggle">' + units.map(function(u){
+          return '<button type="button" class="' + (u === entry.unit ? "selected" : "") + '" data-action="freunit" data-unit="' + u + '">' + u + '</button>';
+        }).join("") + '</div>' +
+      '</div>' +
+      '<div class="chip-group qty-chip-row' + (showQty ? " show" : "") + '" data-role="fre-qtychips">' + QTY_CHIPS.map(function(q){
+        return '<button type="button" class="chip" data-action="freqty" data-value="' + q.value + '">' + q.label + '</button>';
+      }).join("") + '</div>' +
+      (!match ? '<input class="ff-amt" type="number" min="0" placeholder="Calories for this amount" data-role="fre-kcal" value="' + entry.kcal + '">' : "") +
+      '<div class="fre-actions">' +
+        '<button class="icon-btn accent" type="button" data-action="savefoodedit">' + ICONS.check + '<span>Save</span></button>' +
+        '<button class="icon-btn" type="button" data-action="canceledit">Cancel</button>' +
+      '</div>' +
+    '</div>';
+  }
+
   function foodSectionHTML(member, habit, isMine, habits){
     var rec = member.days[viewedDate] || {};
     var entries = rec._food || [];
@@ -1192,7 +1366,7 @@
     var over = total > target;
     var burned = totalBurnToday(member, habits);
     var listId = "foods_" + member.id.replace(/[^a-zA-Z0-9_-]/g, "");
-    var html = '<div class="section-label"><span>Today’s Food</span></div>' +
+    var html = '<div class="section-label"><span>Today’s Food</span><button class="add-habit-link" type="button" data-action="opennutrition" data-member="' + escHTML(member.id) + '">' + ICONS.leaf + '<span>Nutrition</span></button></div>' +
       '<div class="food-section"><div class="food-card">' +
         '<div class="food-top">' +
           '<div class="food-total">' + total + '<span>/ ' + target + ' kcal</span></div>' +
@@ -1213,6 +1387,7 @@
           return '<div class="food-row"><span class="fr-name">' + escHTML(f.name) + '</span><span class="fr-amt">' + escHTML(foodAmountLabel(f)) + '</span>' +
             (macroBits.length ? '<span class="fr-macros">' + macroBits.join(" · ") + '</span>' : "") +
             '<span class="fr-kcal">' + f.kcal + ' kcal</span>' +
+            (isMine ? '<button class="fr-x" type="button" data-action="editfoodrow" data-member="' + escHTML(member.id) + '" data-habit="' + escHTML(habit.id) + '" data-idx="' + idx + '">' + ICONS.pencil + '</button>' : "") +
             (isMine ? '<button class="fr-x" type="button" data-action="rmfood" data-member="' + escHTML(member.id) + '" data-habit="' + escHTML(habit.id) + '" data-idx="' + idx + '">' + ICONS.close + '</button>' : "") +
           '</div>';
         }).join("") : '<p class="food-empty">Nothing logged yet today.</p>') +
@@ -1298,6 +1473,41 @@
     els.lbOverlay.classList.add("open");
   }
   function closeLeaderboard(){ els.lbOverlay.classList.remove("open"); }
+
+  function microTotalsFor(entries){
+    var totals = {};
+    entries.forEach(function(f){
+      if(!f.micro) return;
+      Object.keys(f.micro).forEach(function(k){ totals[k] = (totals[k] || 0) + f.micro[k]; });
+    });
+    return totals;
+  }
+
+  function openNutrition(memberId){
+    var member = mode === "solo" ? { id: "me", name: soloState.name || "You", days: soloState.days, solo: true } : findMember(memberId);
+    if(!member) return;
+    var rec = member.days[viewedDate] || {};
+    var entries = rec._food || [];
+    var totals = microTotalsFor(entries);
+    var haveAny = Object.keys(totals).length > 0;
+    var untracked = entries.filter(function(f){ return !f.micro; }).length;
+    var body = '<div class="nutri-rows">' + Object.keys(MICRO_LABELS).map(function(k){
+      var val = totals[k] || 0;
+      var dv = MICRO_DV[k];
+      var pct = Math.min(100, val / dv * 100);
+      return '<div class="nutri-row">' +
+        '<div class="nutri-row-top"><span class="nutri-label">' + MICRO_LABELS[k] + '</span><span class="nutri-val">' + (Math.round(val * 10) / 10) + MICRO_UNITS[k] + '<span class="nutri-dv"> · ' + Math.round(pct) + '% DV</span></span></div>' +
+        '<div class="nutri-bar"><div class="nutri-bar-fill" style="width:' + pct.toFixed(1) + '%"></div></div>' +
+      '</div>';
+    }).join("") + '</div>' +
+    (!haveAny ? '<p class="nutri-empty">No micronutrient data yet — log a food from the common list to see fiber, sugar, sodium, potassium, calcium, and iron here.</p>' : "") +
+    (haveAny && untracked > 0 ? '<p class="nutri-note">' + untracked + ' logged item' + (untracked === 1 ? "" : "s") + ' ' + (untracked === 1 ? "isn't" : "aren't") + ' in the micronutrient database yet, so totals below are a partial picture.</p>' : "") +
+    '<p class="nutri-note">Values are per-100g estimates for a curated set of common foods — a rough guide, not a lab measurement.</p>';
+    els.nutriTitle.textContent = (member.solo ? "Your" : member.name + "’s") + " Nutrition — " + fmtShortDate(viewedDate);
+    els.nutriBody.innerHTML = body;
+    els.nutriOverlay.classList.add("open");
+  }
+  function closeNutrition(){ els.nutriOverlay.classList.remove("open"); }
 
   var MOUNTAIN_TZ = "America/Denver";
   var REMINDER_KEY = "emberstreak.reminderShown";
@@ -1508,12 +1718,14 @@
     if(rec && rec._log && rec._log[habitId]) rec._log[habitId].splice(idx, 1);
   }
 
-  function applyAddSessionLog(days, habitId, type, duration){
+  function applyAddSessionLog(days, habitId, type, duration, intensity){
     return withTracking(days, function(){
       var rec = ensureDay(days, viewedDate);
       if(!rec._log) rec._log = {};
       if(!rec._log[habitId]) rec._log[habitId] = [];
-      rec._log[habitId].push({ type: type, duration: duration });
+      var entry = { type: type, duration: duration };
+      if(intensity) entry.intensity = intensity;
+      rec._log[habitId].push(entry);
       if(!rec[habitId]) rec[habitId] = true;
       return {};
     });
@@ -1541,6 +1753,15 @@
     }
   }
 
+  function applyEditFood(days, habitId, idx, entry, target){
+    var rec = days[viewedDate];
+    if(rec && rec._food && rec._food[idx]){
+      rec._food[idx] = entry;
+      var total = foodTotalFor(rec);
+      rec[habitId] = total > 0 && total <= target;
+    }
+  }
+
   function applySetWeight(days, value){ ensureDay(days, viewedDate).weight = value; }
 
   /* ---------- solo actions ---------- */
@@ -1562,8 +1783,8 @@
     saveSolo(soloState);
     render();
   }
-  function soloAddSessionLog(habitId, type, duration){
-    var res = applyAddSessionLog(soloState.days, habitId, type, duration);
+  function soloAddSessionLog(habitId, type, duration, intensity){
+    var res = applyAddSessionLog(soloState.days, habitId, type, duration, intensity);
     saveSolo(soloState);
     render();
     afterToggleFeedback(res, soloState.days);
@@ -1577,6 +1798,11 @@
   }
   function soloRemoveFood(habitId, idx){
     applyRemoveFood(soloState.days, habitId, idx, soloState.calorieTarget || 2000);
+    saveSolo(soloState);
+    render();
+  }
+  function soloEditFood(habitId, idx, entry){
+    applyEditFood(soloState.days, habitId, idx, entry, soloState.calorieTarget || 2000);
     saveSolo(soloState);
     render();
   }
@@ -1695,11 +1921,11 @@
     render();
     schedulePublish();
   }
-  function boardAddSessionLog(memberId, habitId, type, duration){
+  function boardAddSessionLog(memberId, habitId, type, duration, intensity){
     if(!me || memberId !== me.id) return;
     var member = findMember(memberId);
     if(!member) return;
-    var res = applyAddSessionLog(member.days, habitId, type, duration);
+    var res = applyAddSessionLog(member.days, habitId, type, duration, intensity);
     render();
     afterToggleFeedback(res, member.days);
     schedulePublish();
@@ -1722,6 +1948,14 @@
     var member = findMember(memberId);
     if(!member) return;
     applyRemoveFood(member.days, habitId, idx, member.calorieTarget || 2000);
+    render();
+    schedulePublish();
+  }
+  function boardEditFood(memberId, habitId, idx, entry){
+    if(!me || memberId !== me.id) return;
+    var member = findMember(memberId);
+    if(!member) return;
+    applyEditFood(member.days, habitId, idx, entry, member.calorieTarget || 2000);
     render();
     schedulePublish();
   }
@@ -1862,10 +2096,12 @@
         var panel = t.closest(".log-panel");
         var durBtn = panel.querySelector('[data-role="duration-group"] .chip.selected');
         var typeBtn = panel.querySelector('[data-role="type-group"] .chip.selected');
+        var intensityBtn = panel.querySelector('[data-role="intensity-group"] .chip.selected');
         var duration = durBtn ? parseInt(durBtn.dataset.value, 10) : 30;
         var type = typeBtn ? typeBtn.dataset.value : "";
-        if(mode === "solo") soloAddSessionLog(t.dataset.habit, type, duration);
-        else if(mode === "board") boardAddSessionLog(t.dataset.member, t.dataset.habit, type, duration);
+        var intensity = intensityBtn ? intensityBtn.dataset.value : null;
+        if(mode === "solo") soloAddSessionLog(t.dataset.habit, type, duration, intensity);
+        else if(mode === "board") boardAddSessionLog(t.dataset.member, t.dataset.habit, type, duration, intensity);
         return;
       }
       if(action === "unit"){
@@ -1899,18 +2135,10 @@
         if(!fname || !(famt > 0)){ showToast("Enter a food and an amount"); return; }
         var funit = unitBtn ? unitBtn.dataset.unit : "g";
         var match = foodMatch(fname);
-        var kcal, rememberFood = null, eaUnit = null, protein = 0, carbs = 0;
-        if(funit === "ea" && match && match.serving){
-          var gramsEa = famt * match.serving;
-          kcal = Math.round(match.kcal100 * gramsEa / 100);
-          if(match.protein100) protein = Math.round(match.protein100 * gramsEa / 100);
-          if(match.carbs100) carbs = Math.round(match.carbs100 * gramsEa / 100);
-          eaUnit = match.unit;
-        } else if(funit !== "ea" && match){
-          var grams = Math.round(famt * (UNIT_GRAMS[funit] || 1));
-          kcal = Math.round(match.kcal100 * grams / 100);
-          if(match.protein100) protein = Math.round(match.protein100 * grams / 100);
-          if(match.carbs100) carbs = Math.round(match.carbs100 * grams / 100);
+        var kcal, rememberFood = null, eaUnit = null, protein = 0, carbs = 0, micro = null;
+        if(match){
+          var calc = computeMatchedNutrition(match, famt, funit);
+          kcal = calc.kcal; protein = calc.protein; carbs = calc.carbs; eaUnit = calc.eaUnit; micro = calc.micro;
         } else {
           var manualKcal = parseFloat(kcalInput.value);
           if(!(manualKcal > 0)){ showToast("Enter calories for this food"); kcalInput.focus(); return; }
@@ -1924,14 +2152,72 @@
         if(eaUnit) entry.eaUnit = eaUnit;
         if(protein) entry.protein = protein;
         if(carbs) entry.carbs = carbs;
+        if(micro) entry.micro = micro;
         if(mode === "solo") soloAddFood(t.dataset.habit, entry, rememberFood);
         else if(mode === "board") boardAddFood(t.dataset.member, t.dataset.habit, entry, rememberFood);
+        return;
+      }
+      if(action === "editfoodrow"){
+        var editRow = t.closest(".food-row");
+        var editMember = mode === "solo" ? { id: "me", days: soloState.days } : findMember(t.dataset.member);
+        var editRec = editMember ? editMember.days[viewedDate] : null;
+        var editEntry = editRec && editRec._food ? editRec._food[parseInt(t.dataset.idx, 10)] : null;
+        if(editRow && editEntry) editRow.outerHTML = foodEditRowHTML(t.dataset.member, t.dataset.habit, editEntry, parseInt(t.dataset.idx, 10));
+        return;
+      }
+      if(action === "canceledit"){
+        render();
+        return;
+      }
+      if(action === "freunit"){
+        var freGroup = t.parentElement;
+        Array.prototype.forEach.call(freGroup.querySelectorAll("button"), function(b){ b.classList.remove("selected"); });
+        t.classList.add("selected");
+        var freRow = t.closest(".food-row-edit");
+        var freQty = freRow.querySelector('[data-role="fre-qtychips"]');
+        if(freQty) freQty.classList.toggle("show", ["ea", "cup", "tbsp", "tsp"].indexOf(t.dataset.unit) !== -1);
+        return;
+      }
+      if(action === "freqty"){
+        var freqRow = t.closest(".food-row-edit");
+        freqRow.querySelector('[data-role="fre-amt"]').value = t.dataset.value;
+        return;
+      }
+      if(action === "savefoodedit"){
+        var seRow = t.closest(".food-row-edit");
+        var seMemberId = seRow.dataset.member, seHabitId = seRow.dataset.habit, seIdx = parseInt(seRow.dataset.idx, 10);
+        var seAmt = parseFloat(seRow.querySelector('[data-role="fre-amt"]').value);
+        var seUnitBtn = seRow.querySelector(".unit-toggle button.selected");
+        var seUnit = seUnitBtn ? seUnitBtn.dataset.unit : "g";
+        if(!(seAmt > 0)){ showToast("Enter an amount"); return; }
+        var seName = seRow.dataset.name;
+        var seMatch = foodMatch(seName);
+        var seEntry = { name: seName, amount: seAmt, unit: seUnit };
+        if(seMatch){
+          var seCalc = computeMatchedNutrition(seMatch, seAmt, seUnit);
+          seEntry.kcal = seCalc.kcal;
+          if(seCalc.eaUnit) seEntry.eaUnit = seCalc.eaUnit;
+          if(seCalc.protein) seEntry.protein = seCalc.protein;
+          if(seCalc.carbs) seEntry.carbs = seCalc.carbs;
+          if(seCalc.micro) seEntry.micro = seCalc.micro;
+        } else {
+          var seKcalInput = seRow.querySelector('[data-role="fre-kcal"]');
+          var seKcal = seKcalInput ? parseFloat(seKcalInput.value) : NaN;
+          if(!(seKcal > 0)){ showToast("Enter calories for this food"); return; }
+          seEntry.kcal = Math.round(seKcal);
+        }
+        if(mode === "solo") soloEditFood(seHabitId, seIdx, seEntry);
+        else if(mode === "board") boardEditFood(seMemberId, seHabitId, seIdx, seEntry);
         return;
       }
       if(action === "rmfood"){
         var fidx = parseInt(t.dataset.idx, 10);
         if(mode === "solo") soloRemoveFood(t.dataset.habit, fidx);
         else if(mode === "board") boardRemoveFood(t.dataset.member, t.dataset.habit, fidx);
+        return;
+      }
+      if(action === "opennutrition"){
+        openNutrition(t.dataset.member);
         return;
       }
       if(action === "edittarget"){
@@ -2072,6 +2358,8 @@
   els.leaderboardBtn.addEventListener("click", function(){ openLeaderboard(false); });
   els.lbClose.addEventListener("click", closeLeaderboard);
   els.lbOverlay.addEventListener("click", function(e){ if(e.target === els.lbOverlay) closeLeaderboard(); });
+  els.nutriClose.addEventListener("click", closeNutrition);
+  els.nutriOverlay.addEventListener("click", function(e){ if(e.target === els.nutriOverlay) closeNutrition(); });
   els.pickerAddBtn.addEventListener("click", function(){
     var chosen = SUGGESTIONS.filter(function(s){ return pickerSelected.has(s.id); })
       .map(function(s){ return { id: s.id, label: s.label, icon: s.icon, kind: s.kind }; });
