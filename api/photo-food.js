@@ -46,15 +46,21 @@ module.exports = async function handler(req, res) {
           "You read photos of food packaging or nutrition facts panels for a calorie-tracking app. " +
           "Respond with ONLY a single JSON object, no other text, no markdown fences. Shape: " +
           '{"name": string, "kcal100": number, "protein100": number, "carbs100": number, ' +
-          '"servingGrams": number, "servingLabel": string, "found": boolean}. ' +
+          '"servingGrams": number, "servingLabel": string, "found": boolean, "confidence": string}. ' +
           "All *100 fields are per 100 grams. servingGrams is the gram weight of ONE serving as stated on " +
           "the Nutrition Facts panel (the number in parentheses next to Serving Size, e.g. 32 for '2 Tbsp " +
           "(32g)'). servingLabel is the household measure alone, without the gram weight (e.g. '2 tbsp', " +
-          "'1 slice', '1 bar', '1 cup', '3 cookies'). If you can read exact figures from a Nutrition Facts " +
-          "panel, compute the per-100g values from the serving size shown. If no nutrition panel is visible, " +
-          "make your best estimate from the product name/type — including a reasonable servingGrams and " +
-          "servingLabel (e.g. '1 medium' for a piece of fruit) — and set found to true anyway. Only set " +
-          "found to false if the image doesn't show food or packaging at all.",
+          "'1 slice', '1 bar', '1 cup', '3 cookies'). confidence is 'label' if you read exact printed " +
+          "figures from a visible Nutrition Facts panel, 'brand' if the panel isn't fully visible/legible " +
+          "but you can identify the specific product name or brand (e.g. 'Skippy Creamy Peanut Butter') " +
+          "and know its typical published nutrition, or 'guess' if you can only tell the general food type " +
+          "with no specific brand (e.g. just 'peanut butter' with no brand visible). " +
+          "IMPORTANT: never substitute generic category averages when you can identify the actual brand/" +
+          "product from ANY visible part of the packaging (logo, product name, partial label) — a partially " +
+          "cut-off or blurry photo of a Skippy jar should still return Skippy's real numbers from your " +
+          "knowledge, not generic peanut butter numbers, and the name field should include the brand. Use " +
+          "'guess' confidence, and put the true generic type in name, only when no brand is identifiable at " +
+          "all. Only set found to false if the image shows no food or packaging whatsoever.",
         messages: [{
           role: "user",
           content: [
@@ -94,7 +100,8 @@ module.exports = async function handler(req, res) {
       protein100: Math.max(0, Math.round(Number(parsed.protein100) || 0)),
       carbs100: Math.max(0, Math.round(Number(parsed.carbs100) || 0)),
       servingGrams: Number(parsed.servingGrams) > 0 ? Math.round(Number(parsed.servingGrams)) : 100,
-      servingLabel: String(parsed.servingLabel || "serving").slice(0, 30)
+      servingLabel: String(parsed.servingLabel || "serving").slice(0, 30),
+      confidence: ["label", "brand", "guess"].indexOf(parsed.confidence) !== -1 ? parsed.confidence : "guess"
     });
   } catch (err) {
     res.status(500).json({ error: "Request failed: " + (err && err.message ? err.message : String(err)) });
