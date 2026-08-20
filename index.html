@@ -3,6 +3,7 @@
 <title>Accountability Partner</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap">
+<script src="https://unpkg.com/@zxing/library@0.21.3/umd/index.min.js"></script>
 
 <style>
   :root{
@@ -457,8 +458,7 @@
   .food-form{ display: flex; flex-direction: column; gap: 8px; padding-top: 12px; border-top: 1px solid var(--line); }
   .food-form-row{ display: flex; gap: 6px; flex-wrap: wrap; }
   .food-form input{ background: var(--surface-2); border: 1px solid var(--line); color: var(--ink); border-radius: 8px; padding: 8px 10px; font-size: 12.5px; min-width: 0; }
-  .food-form .ff-name{ flex: 1.6; }
-  .food-form .ff-amt{ flex: 1; }
+  .food-form .ff-amt{ flex: 1; min-width: 80px; }
   .unit-toggle{ display: flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; flex: none; }
   .unit-toggle button{ background: var(--surface-2); border: none; color: var(--ink-dim); padding: 8px 10px; font-size: 11.5px; font-weight: 700; cursor: pointer; }
   .unit-toggle button.selected{ background: var(--accent); color: var(--accent-ink); }
@@ -1425,9 +1425,9 @@
   function foodFormHTML(member, habit, listId){
     var all = COMMON_FOODS.concat(currentCustomFoods());
     return '<div class="food-form" data-member="' + escHTML(member.id) + '" data-habit="' + escHTML(habit.id) + '">' +
-      '<button class="icon-btn" type="button" data-action="scanfood" data-member="' + escHTML(member.id) + '" data-habit="' + escHTML(habit.id) + '" style="align-self:flex-start;">' + ICONS.camera + '<span>Scan barcode / photo food</span></button>' +
+      '<button class="icon-btn" type="button" data-action="scanfood" data-member="' + escHTML(member.id) + '" data-habit="' + escHTML(habit.id) + '" style="align-self:flex-start;">' + ICONS.camera + '<span>Scan or photo food</span></button>' +
+      '<input class="ff-name" type="text" list="' + listId + '" placeholder="Food e.g. Chicken Breast" maxlength="40" data-role="ff-name">' +
       '<div class="food-form-row">' +
-        '<input class="ff-name" type="text" list="' + listId + '" placeholder="Food e.g. Chicken Breast" maxlength="40" data-role="ff-name">' +
         '<input class="ff-amt" type="text" inputmode="decimal" placeholder="Amount" data-role="ff-amt">' +
         '<div class="unit-toggle"><button type="button" class="selected" data-action="unit" data-unit="g">g</button><button type="button" data-action="unit" data-unit="oz">oz</button><button type="button" data-action="unit" data-unit="cup">cup</button><button type="button" data-action="unit" data-unit="tbsp">tbsp</button><button type="button" data-action="unit" data-unit="tsp">tsp</button><button type="button" data-action="unit" data-unit="ea">ea</button></div>' +
       '</div>' +
@@ -1664,56 +1664,36 @@
 
   /* ---------- photo-based food lookup (Vercel-only: needs /api/photo-food, blocked by the artifact CSP) ---------- */
   var photoTargetMember = null, photoTargetHabit = null;
-  var scanStream = null, scanPollTimer = null;
+  var scanStream = null, scanPollTimer = null, zxingReader = null, lastScanCode = null;
+  var BARCODE_FORMATS = ["qr_code", "ean_13", "ean_8", "upc_a", "upc_e", "code_128", "code_39"];
+  function hasNativeScan(){ return typeof BarcodeDetector !== "undefined"; }
+  function hasZXingScan(){ return typeof ZXing !== "undefined" && !!(ZXing && ZXing.BrowserMultiFormatReader); }
   function openLiveScanner(memberId, habitId){
     photoTargetMember = memberId; photoTargetHabit = habitId;
-    els.scanFallbackBtn.hidden = true;
-    els.scanOverlay.classList.add("open");
-    if(typeof BarcodeDetector === "undefined" || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
-      els.scanStatus.textContent = "Live barcode scanning isn't supported in this browser.";
-      els.scanFallbackBtn.hidden = false;
+    lastScanCode = null;
+    if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || (!hasNativeScan() && !hasZXingScan())){
+      useFallbackPhoto();
       return;
     }
+    els.scanFallbackBtn.hidden = true;
+    els.scanOverlay.classList.add("open");
     els.scanStatus.textContent = "Starting camera…";
+    if(hasNativeScan()) startNativeScan(); else startZXingScan();
+  }
+  function startNativeScan(){
     navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } }).then(function(stream){
       scanStream = stream;
       els.scanVideo.srcObject = stream;
       els.scanStatus.textContent = "Point your camera at a barcode.";
-      var detector = new BarcodeDetector({ formats: ["qr_code", "ean_13", "ean_8", "upc_a", "upc_e", "code_128", "code_39"] });
-      var busy = false;
-      scanPollTimer = setInterval(function(){
-        if(busy || els.scanVideo.readyState < 2) return;
-        busy = true;
-        detector.detect(els.scanVideo).then(function(codes){
-          busy = false;
-          if(codes && codes.length){
-            onLiveBarcodeFound(codes[0].rawValue);
-          }
-        }).catch(function(){ busy = false; });
-      }, 350);
+      pollNativeScan();
     }).catch(function(err){
       els.scanStatus.textContent = "Couldn't access the camera: " + (err && err.message ? err.message : err);
       els.scanFallbackBtn.hidden = false;
     });
   }
-  function onLiveBarcodeFound(code){
-    clearInterval(scanPollTimer);
-    scanPollTimer = null;
-    els.scanStatus.textContent = "Looking up " + code + "…";
-    lookupOpenFoodFacts(code).then(function(food){
-      if(food){
-        closeLiveScanner();
-        applyScannedFood(food, " (barcode)");
-      } else {
-        els.scanStatus.textContent = "No product found for that barcode. Keep scanning, or use a photo instead.";
-        els.scanFallbackBtn.hidden = false;
-        restartPolling();
-      }
-    });
-  }
-  function restartPolling(){
+  function pollNativeScan(){
     if(!els.scanVideo.srcObject) return;
-    var detector = new BarcodeDetector({ formats: ["qr_code", "ean_13", "ean_8", "upc_a", "upc_e", "code_128", "code_39"] });
+    var detector = new BarcodeDetector({ formats: BARCODE_FORMATS });
     var busy = false;
     scanPollTimer = setInterval(function(){
       if(busy || els.scanVideo.readyState < 2) return;
@@ -1724,10 +1704,45 @@
       }).catch(function(){ busy = false; });
     }, 350);
   }
+  function startZXingScan(){
+    els.scanStatus.textContent = "Starting camera…";
+    try{
+      zxingReader = new ZXing.BrowserMultiFormatReader();
+      zxingReader.decodeFromConstraints(
+        { video: { facingMode: "environment" } },
+        els.scanVideo,
+        function(result){ if(result) onLiveBarcodeFound(result.getText()); }
+      ).then(function(){
+        els.scanStatus.textContent = "Point your camera at a barcode.";
+      }).catch(function(err){
+        els.scanStatus.textContent = "Couldn't access the camera: " + (err && err.message ? err.message : err);
+        els.scanFallbackBtn.hidden = false;
+      });
+    }catch(err){
+      els.scanStatus.textContent = "Live scanning isn't available — use a photo instead.";
+      els.scanFallbackBtn.hidden = false;
+    }
+  }
+  function onLiveBarcodeFound(code){
+    if(code === lastScanCode) return;
+    lastScanCode = code;
+    els.scanStatus.textContent = "Looking up " + code + "…";
+    lookupOpenFoodFacts(code).then(function(food){
+      if(food){
+        closeLiveScanner();
+        applyScannedFood(food, " (barcode)");
+      } else {
+        els.scanStatus.textContent = "No product found for that barcode. Keep scanning, or use a photo instead.";
+        els.scanFallbackBtn.hidden = false;
+        lastScanCode = null;
+      }
+    });
+  }
   function closeLiveScanner(){
     els.scanOverlay.classList.remove("open");
     if(scanPollTimer){ clearInterval(scanPollTimer); scanPollTimer = null; }
     if(scanStream){ scanStream.getTracks().forEach(function(t){ t.stop(); }); scanStream = null; }
+    if(zxingReader){ try{ zxingReader.reset(); }catch(e){} zxingReader = null; }
     els.scanVideo.srcObject = null;
   }
   function useFallbackPhoto(){
@@ -2814,4 +2829,4 @@
 })();
 </script>
 
-<script type="application/json" id="boardData">{"habits":[{"id":"gym","label":"Gym Session","icon":"gym","kind":"exercise","core":true},{"id":"cardio","label":"Cardio","icon":"cardio","kind":"cardio","core":true},{"id":"calories","label":"Eat Recommended Calories","icon":"calories","kind":"food","core":true},{"id":"noPorn","label":"No Porn","icon":"shield","kind":"simple","core":true},{"id":"read","label":"Read 10 Pages","icon":"book","kind":"simple","core":true},{"id":"meditate","label":"Meditate","icon":"meditate","kind":"simple","core":true},{"id":"pray","label":"Pray","icon":"pray","kind":"simple","core":true},{"id":"water","label":"Drink 8 Glasses of Water","icon":"water","kind":"simple","core":true},{"id":"sleep7","label":"Sleep 7+ Hours","icon":"sleep","kind":"simple","core":true},{"id":"steps8k","label":"Walk 8,000 Steps","icon":"steps","kind":"simple","core":true}],"members":[],"customFoods":[]}</script>
+<script type="application/json" id="boardData">{"habits": [{"id": "gym", "label": "Gym Session", "icon": "gym", "kind": "exercise", "core": true}, {"id": "cardio", "label": "Cardio", "icon": "cardio", "kind": "cardio", "core": true}, {"id": "calories", "label": "Eat Recommended Calories", "icon": "calories", "kind": "food", "core": true}, {"id": "noPorn", "label": "No Porn", "icon": "shield", "kind": "simple", "core": true}, {"id": "read", "label": "Read 10 Pages", "icon": "book", "kind": "simple", "core": true}, {"id": "meditate", "label": "Meditate", "icon": "meditate", "kind": "simple", "core": true}, {"id": "pray", "label": "Pray", "icon": "pray", "kind": "simple", "core": true}, {"id": "water", "label": "Drink 8 Glasses of Water", "icon": "water", "kind": "simple", "core": true}, {"id": "sleep7", "label": "Sleep 7+ Hours", "icon": "sleep", "kind": "simple", "core": true}, {"id": "steps8k", "label": "Walk 8,000 Steps", "icon": "steps", "kind": "simple", "core": true}], "members": [], "customFoods": []}</script>
