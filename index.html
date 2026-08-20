@@ -3,7 +3,6 @@
 <title>Accountability Partner</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap">
-<script src="https://unpkg.com/@zxing/library@0.21.3/umd/index.min.js"></script>
 
 <style>
   :root{
@@ -542,9 +541,6 @@
   .nutri-bar-fill{ height: 100%; border-radius: 99px; background: var(--gold); transition: width .4s ease; }
   .nutri-empty{ font-size: 13px; color: var(--ink-dim); margin: 0 0 14px; }
   .nutri-note{ font-size: 11px; color: var(--ink-faint); margin: 0 0 8px; }
-  #scanVideoWrap{ width: 100%; aspect-ratio: 3 / 4; border-radius: 12px; overflow: hidden; background: #000; margin-bottom: 12px; position: relative; }
-  #scanVideo{ width: 100%; height: 100%; object-fit: cover; display: block; }
-  #scanFallbackBtn{ width: 100%; justify-content: center; }
   .coach-tip{ font-size: 14px; line-height: 1.55; color: var(--ink); margin: 0 0 16px; white-space: pre-line; }
   .coach-loading{ display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--ink-dim); margin: 0 0 16px; }
 
@@ -636,18 +632,6 @@
 </div>
 
 <input type="file" accept="image/*" capture="environment" id="photoFoodInput" style="display:none">
-
-<div class="modal-overlay" id="scanOverlay">
-  <div class="modal">
-    <div class="modal-head">
-      <h2>Scan a Barcode</h2>
-      <button class="modal-close" id="scanClose" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"></line><line x1="18" y1="6" x2="6" y2="18"></line></svg></button>
-    </div>
-    <div id="scanVideoWrap"><video id="scanVideo" autoplay playsinline muted></video></div>
-    <p class="nutri-note" id="scanStatus">Point your camera at a barcode.</p>
-    <button class="icon-btn" type="button" id="scanFallbackBtn" hidden>Take a photo of the label instead</button>
-  </div>
-</div>
 
 <div class="toast" id="toast"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2c2.6 3.4-1.7 4.6-1.7 8.2a3.7 3.7 0 1 0 7.4 0c0-1.8-.9-2.8-1.8-4.4.9 2.7-.9 3.6-1.8 1.8.9-1.8-.9-2.7-1.9-5.6z"/></svg><span id="toastText"></span></div>
 
@@ -1075,11 +1059,6 @@
     coachClose: document.getElementById("coachClose"),
     coachBody: document.getElementById("coachBody"),
     photoFoodInput: document.getElementById("photoFoodInput"),
-    scanOverlay: document.getElementById("scanOverlay"),
-    scanClose: document.getElementById("scanClose"),
-    scanVideo: document.getElementById("scanVideo"),
-    scanStatus: document.getElementById("scanStatus"),
-    scanFallbackBtn: document.getElementById("scanFallbackBtn"),
     readonlyBanner: document.getElementById("readonlyBanner"),
     joinCard: document.getElementById("joinCard"),
     rosterLabel: document.getElementById("rosterLabel"),
@@ -1425,7 +1404,7 @@
   function foodFormHTML(member, habit, listId){
     var all = COMMON_FOODS.concat(currentCustomFoods());
     return '<div class="food-form" data-member="' + escHTML(member.id) + '" data-habit="' + escHTML(habit.id) + '">' +
-      '<button class="icon-btn" type="button" data-action="scanfood" data-member="' + escHTML(member.id) + '" data-habit="' + escHTML(habit.id) + '" style="align-self:flex-start;">' + ICONS.camera + '<span>Scan or photo food</span></button>' +
+      '<button class="icon-btn" type="button" data-action="scanfood" data-member="' + escHTML(member.id) + '" data-habit="' + escHTML(habit.id) + '" style="align-self:flex-start;">' + ICONS.camera + '<span>Photo a food label</span></button>' +
       '<input class="ff-name" type="text" list="' + listId + '" placeholder="Food e.g. Chicken Breast" maxlength="40" data-role="ff-name">' +
       '<div class="food-form-row">' +
         '<input class="ff-amt" type="text" inputmode="decimal" placeholder="Amount" data-role="ff-amt">' +
@@ -1664,89 +1643,8 @@
 
   /* ---------- photo-based food lookup (Vercel-only: needs /api/photo-food, blocked by the artifact CSP) ---------- */
   var photoTargetMember = null, photoTargetHabit = null;
-  var scanStream = null, scanPollTimer = null, zxingReader = null, lastScanCode = null;
-  var BARCODE_FORMATS = ["qr_code", "ean_13", "ean_8", "upc_a", "upc_e", "code_128", "code_39"];
-  function hasNativeScan(){ return typeof BarcodeDetector !== "undefined"; }
-  function hasZXingScan(){ return typeof ZXing !== "undefined" && !!(ZXing && ZXing.BrowserMultiFormatReader); }
   function openLiveScanner(memberId, habitId){
     photoTargetMember = memberId; photoTargetHabit = habitId;
-    lastScanCode = null;
-    if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || (!hasNativeScan() && !hasZXingScan())){
-      useFallbackPhoto();
-      return;
-    }
-    els.scanFallbackBtn.hidden = true;
-    els.scanOverlay.classList.add("open");
-    els.scanStatus.textContent = "Starting camera…";
-    if(hasNativeScan()) startNativeScan(); else startZXingScan();
-  }
-  function startNativeScan(){
-    navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } }).then(function(stream){
-      scanStream = stream;
-      els.scanVideo.srcObject = stream;
-      els.scanStatus.textContent = "Point your camera at a barcode.";
-      pollNativeScan();
-    }).catch(function(err){
-      els.scanStatus.textContent = "Couldn't access the camera: " + (err && err.message ? err.message : err);
-      els.scanFallbackBtn.hidden = false;
-    });
-  }
-  function pollNativeScan(){
-    if(!els.scanVideo.srcObject) return;
-    var detector = new BarcodeDetector({ formats: BARCODE_FORMATS });
-    var busy = false;
-    scanPollTimer = setInterval(function(){
-      if(busy || els.scanVideo.readyState < 2) return;
-      busy = true;
-      detector.detect(els.scanVideo).then(function(codes){
-        busy = false;
-        if(codes && codes.length) onLiveBarcodeFound(codes[0].rawValue);
-      }).catch(function(){ busy = false; });
-    }, 350);
-  }
-  function startZXingScan(){
-    els.scanStatus.textContent = "Starting camera…";
-    try{
-      zxingReader = new ZXing.BrowserMultiFormatReader();
-      zxingReader.decodeFromConstraints(
-        { video: { facingMode: "environment" } },
-        els.scanVideo,
-        function(result){ if(result) onLiveBarcodeFound(result.getText()); }
-      ).then(function(){
-        els.scanStatus.textContent = "Point your camera at a barcode.";
-      }).catch(function(err){
-        els.scanStatus.textContent = "Couldn't access the camera: " + (err && err.message ? err.message : err);
-        els.scanFallbackBtn.hidden = false;
-      });
-    }catch(err){
-      els.scanStatus.textContent = "Live scanning isn't available — use a photo instead.";
-      els.scanFallbackBtn.hidden = false;
-    }
-  }
-  function onLiveBarcodeFound(code){
-    if(code === lastScanCode) return;
-    lastScanCode = code;
-    els.scanStatus.textContent = "Looking up " + code + "…";
-    lookupOpenFoodFacts(code).then(function(food){
-      if(food){
-        closeLiveScanner();
-        applyScannedFood(food, " (barcode)");
-      } else {
-        els.scanStatus.textContent = "No product found for that barcode. Keep scanning, or use a photo instead.";
-        els.scanFallbackBtn.hidden = false;
-        lastScanCode = null;
-      }
-    });
-  }
-  function closeLiveScanner(){
-    els.scanOverlay.classList.remove("open");
-    if(scanPollTimer){ clearInterval(scanPollTimer); scanPollTimer = null; }
-    if(scanStream){ scanStream.getTracks().forEach(function(t){ t.stop(); }); scanStream = null; }
-    if(zxingReader){ try{ zxingReader.reset(); }catch(e){} zxingReader = null; }
-    els.scanVideo.srcObject = null;
-  }
-  function useFallbackPhoto(){
-    closeLiveScanner();
     showToast("Tip: back up a bit so the whole Nutrition Facts panel fits in frame");
     els.photoFoodInput.value = "";
     els.photoFoodInput.click();
@@ -1780,31 +1678,6 @@
       amtInput.focus();
     }
     showToast("Found: " + food.name + (toastSuffix || ""));
-  }
-  function lookupOpenFoodFacts(code){
-    if(!/^\d{6,14}$/.test(code)) return Promise.resolve(null);
-    return fetch("https://world.openfoodfacts.org/api/v2/product/" + encodeURIComponent(code) + ".json")
-      .then(function(r){ return r.json(); })
-      .then(function(data){
-        if(!data || data.status !== 1 || !data.product) return null;
-        var p = data.product;
-        var n = p.nutriments || {};
-        var kcal100 = n["energy-kcal_100g"];
-        if(kcal100 == null && n["energy_100g"] != null) kcal100 = n["energy_100g"] / 4.184;
-        if(kcal100 == null) return null;
-        var name = (p.product_name || p.generic_name || code).trim().slice(0, 60) || code;
-        var servingGrams = p.serving_quantity ? Math.round(Number(p.serving_quantity)) : null;
-        var servingLabel = p.serving_size ? String(p.serving_size).replace(/\s*\(?\d+(\.\d+)?\s*g\)?/i, "").trim() : "";
-        return {
-          name: name,
-          kcal100: Math.round(kcal100),
-          protein100: n["proteins_100g"] != null ? Math.round(n["proteins_100g"]) : 0,
-          carbs100: n["carbohydrates_100g"] != null ? Math.round(n["carbohydrates_100g"]) : 0,
-          serving: servingGrams || 100,
-          unit: servingLabel || "serving"
-        };
-      })
-      .catch(function(){ return null; });
   }
   function readLabelWithVision(file){
     showToast("Reading the label…");
@@ -2735,9 +2608,6 @@
   els.coachClose.addEventListener("click", closeCoach);
   els.coachOverlay.addEventListener("click", function(e){ if(e.target === els.coachOverlay) closeCoach(); });
   els.photoFoodInput.addEventListener("change", function(e){ onPhotoFoodSelected(e.target.files && e.target.files[0]); });
-  els.scanClose.addEventListener("click", closeLiveScanner);
-  els.scanOverlay.addEventListener("click", function(e){ if(e.target === els.scanOverlay) closeLiveScanner(); });
-  els.scanFallbackBtn.addEventListener("click", useFallbackPhoto);
   els.pickerAddBtn.addEventListener("click", function(){
     var chosen = SUGGESTIONS.filter(function(s){ return pickerSelected.has(s.id); })
       .map(function(s){ return { id: s.id, label: s.label, icon: s.icon, kind: s.kind }; });
