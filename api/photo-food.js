@@ -45,16 +45,21 @@ module.exports = async function handler(req, res) {
         system:
           "You read photos of food packaging or nutrition facts panels for a calorie-tracking app. " +
           "Respond with ONLY a single JSON object, no other text, no markdown fences. Shape: " +
-          '{"name": string, "kcal100": number, "protein100": number, "carbs100": number, "found": boolean}. ' +
-          "All *100 fields are per 100 grams. If you can read exact figures from a Nutrition Facts panel, " +
-          "compute the per-100g values from the serving size shown. If no nutrition panel is visible, make " +
-          "your best estimate from the product name/type and set found to true anyway with your best-guess " +
-          "numbers — only set found to false if the image doesn't show food or packaging at all.",
+          '{"name": string, "kcal100": number, "protein100": number, "carbs100": number, ' +
+          '"servingGrams": number, "servingLabel": string, "found": boolean}. ' +
+          "All *100 fields are per 100 grams. servingGrams is the gram weight of ONE serving as stated on " +
+          "the Nutrition Facts panel (the number in parentheses next to Serving Size, e.g. 32 for '2 Tbsp " +
+          "(32g)'). servingLabel is the household measure alone, without the gram weight (e.g. '2 tbsp', " +
+          "'1 slice', '1 bar', '1 cup', '3 cookies'). If you can read exact figures from a Nutrition Facts " +
+          "panel, compute the per-100g values from the serving size shown. If no nutrition panel is visible, " +
+          "make your best estimate from the product name/type — including a reasonable servingGrams and " +
+          "servingLabel (e.g. '1 medium' for a piece of fruit) — and set found to true anyway. Only set " +
+          "found to false if the image doesn't show food or packaging at all.",
         messages: [{
           role: "user",
           content: [
             { type: "image", source: { type: "base64", media_type: mediaType, data: imageBase64 } },
-            { type: "text", text: "Identify this food and its nutrition per 100g." }
+            { type: "text", text: "Identify this food, its nutrition per 100g, and its serving size." }
           ]
         }]
       })
@@ -87,7 +92,9 @@ module.exports = async function handler(req, res) {
       name: String(parsed.name || "Unknown food").slice(0, 60),
       kcal100: Math.max(0, Math.round(Number(parsed.kcal100) || 0)),
       protein100: Math.max(0, Math.round(Number(parsed.protein100) || 0)),
-      carbs100: Math.max(0, Math.round(Number(parsed.carbs100) || 0))
+      carbs100: Math.max(0, Math.round(Number(parsed.carbs100) || 0)),
+      servingGrams: Number(parsed.servingGrams) > 0 ? Math.round(Number(parsed.servingGrams)) : 100,
+      servingLabel: String(parsed.servingLabel || "serving").slice(0, 30)
     });
   } catch (err) {
     res.status(500).json({ error: "Request failed: " + (err && err.message ? err.message : String(err)) });

@@ -1386,7 +1386,13 @@
   }
 
   function foodAmountLabel(entry){
-    if(entry.unit === "ea") return fmtAmount(entry.amount) + " " + (entry.eaUnit || "ea");
+    if(entry.unit === "ea"){
+      var eaLabel = entry.eaUnit || "ea";
+      if(/^\d/.test(eaLabel)){
+        return entry.amount === 1 ? "1 serving (" + eaLabel + ")" : fmtAmount(entry.amount) + " servings (" + eaLabel + " each)";
+      }
+      return fmtAmount(entry.amount) + " " + eaLabel;
+    }
     if(entry.unit === "cup") return fmtAmount(entry.amount) + " " + (entry.amount > 1 ? "cups" : "cup");
     if(entry.unit === "tbsp") return fmtAmount(entry.amount) + " tbsp";
     if(entry.unit === "tsp") return fmtAmount(entry.amount) + " tsp";
@@ -1676,17 +1682,23 @@
         return r.json();
       }).then(function(data){
         if(!data.found){ showToast("Couldn't identify that food — try a clearer photo of the label."); return; }
-        var food = { name: data.name, kcal100: data.kcal100, protein100: data.protein100, carbs100: data.carbs100, serving: 100, unit: "serving" };
+        var food = {
+          name: data.name, kcal100: data.kcal100, protein100: data.protein100, carbs100: data.carbs100,
+          serving: data.servingGrams, unit: data.servingLabel
+        };
         rememberScannedFood(food);
         var form = document.querySelector('.food-form[data-member="' + photoTargetMember + '"][data-habit="' + photoTargetHabit + '"]');
         if(form){
           var nameInput = form.querySelector('[data-role="ff-name"]');
           var amtInput = form.querySelector('[data-role="ff-amt"]');
+          var eaBtn = form.querySelector('.unit-toggle button[data-unit="ea"]');
           nameInput.value = data.name;
+          amtInput.value = "1";
+          if(eaBtn) eaBtn.click();
           updateFoodPreview(form);
           amtInput.focus();
         }
-        showToast("Found: " + data.name);
+        showToast("Found: " + data.name + " (" + data.servingLabel + " ≈ " + data.servingGrams + "g)");
       }).catch(function(){
         showToast("Photo lookup isn't available here — this only works on the Vercel deployment with an Anthropic API key configured.");
       });
@@ -2469,7 +2481,8 @@
     if(match && unit === "ea" && match.serving && amt > 0){
       var gramsEa = amt * match.serving;
       var kcalEa = Math.round(match.kcal100 * gramsEa / 100);
-      preview.textContent = "≈ " + kcalEa + " kcal (" + amt + " " + match.unit + " ≈ " + Math.round(gramsEa) + "g)";
+      var eaDesc = /^\d/.test(match.unit) ? (amt === 1 ? "1 serving (" + match.unit + ")" : amt + " servings (" + match.unit + " each)") : (amt + " " + match.unit);
+      preview.textContent = "≈ " + kcalEa + " kcal (" + eaDesc + " ≈ " + Math.round(gramsEa) + "g)";
       manualRow.classList.remove("show");
     } else if(match && unit !== "ea" && amt > 0){
       var grams = amt * (UNIT_GRAMS[unit] || 1);
