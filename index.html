@@ -3,7 +3,6 @@
 <title>Accountability Partner</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap">
-<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 
 <style>
   :root{
@@ -545,8 +544,6 @@
   .nutri-note{ font-size: 11px; color: var(--ink-faint); margin: 0 0 8px; }
   .coach-tip{ font-size: 14px; line-height: 1.55; color: var(--ink); margin: 0 0 16px; white-space: pre-line; }
   .coach-loading{ display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--ink-dim); margin: 0 0 16px; }
-  #scanRegion{ width: 100%; border-radius: 12px; overflow: hidden; background: #000; min-height: 220px; margin-bottom: 12px; }
-  #scanRegion video{ border-radius: 12px; }
 
   @media (prefers-reduced-motion: reduce){
     .habit-main, .ring-fill, .xp-fill, .toast, .chev{ transition: none !important; }
@@ -635,16 +632,7 @@
   </div>
 </div>
 
-<div class="modal-overlay" id="scanOverlay">
-  <div class="modal">
-    <div class="modal-head">
-      <h2>Scan a Barcode</h2>
-      <button class="modal-close" id="scanClose" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"></line><line x1="18" y1="6" x2="6" y2="18"></line></svg></button>
-    </div>
-    <div id="scanRegion"></div>
-    <p class="nutri-note" id="scanStatus">Point your camera at a product barcode.</p>
-  </div>
-</div>
+<input type="file" accept="image/*" capture="environment" id="photoFoodInput" style="display:none">
 
 <div class="toast" id="toast"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2c2.6 3.4-1.7 4.6-1.7 8.2a3.7 3.7 0 1 0 7.4 0c0-1.8-.9-2.8-1.8-4.4.9 2.7-.9 3.6-1.8 1.8.9-1.8-.9-2.7-1.9-5.6z"/></svg><span id="toastText"></span></div>
 
@@ -1071,9 +1059,7 @@
     coachOverlay: document.getElementById("coachOverlay"),
     coachClose: document.getElementById("coachClose"),
     coachBody: document.getElementById("coachBody"),
-    scanOverlay: document.getElementById("scanOverlay"),
-    scanClose: document.getElementById("scanClose"),
-    scanStatus: document.getElementById("scanStatus"),
+    photoFoodInput: document.getElementById("photoFoodInput"),
     readonlyBanner: document.getElementById("readonlyBanner"),
     joinCard: document.getElementById("joinCard"),
     rosterLabel: document.getElementById("rosterLabel"),
@@ -1413,7 +1399,7 @@
   function foodFormHTML(member, habit, listId){
     var all = COMMON_FOODS.concat(currentCustomFoods());
     return '<div class="food-form" data-member="' + escHTML(member.id) + '" data-habit="' + escHTML(habit.id) + '">' +
-      '<button class="icon-btn" type="button" data-action="scanbarcode" data-member="' + escHTML(member.id) + '" data-habit="' + escHTML(habit.id) + '" style="align-self:flex-start;">' + ICONS.camera + '<span>Scan barcode</span></button>' +
+      '<button class="icon-btn" type="button" data-action="photofood" data-member="' + escHTML(member.id) + '" data-habit="' + escHTML(habit.id) + '" style="align-self:flex-start;">' + ICONS.camera + '<span>Take a photo of the label</span></button>' +
       '<div class="food-form-row">' +
         '<input class="ff-name" type="text" list="' + listId + '" placeholder="Food e.g. Chicken Breast" maxlength="40" data-role="ff-name">' +
         '<input class="ff-amt" type="text" inputmode="decimal" placeholder="Amount" data-role="ff-amt">' +
@@ -1650,46 +1636,12 @@
   }
   function closeCoach(){ els.coachOverlay.classList.remove("open"); }
 
-  /* ---------- barcode scanning (Vercel-only: needs the html5-qrcode CDN script + Open Food Facts, both blocked by the artifact CSP) ---------- */
-  var html5QrScanner = null, scanTargetMember = null, scanTargetHabit = null;
-  function openScanner(memberId, habitId){
-    scanTargetMember = memberId; scanTargetHabit = habitId;
-    els.scanStatus.textContent = "Point your camera at a product barcode.";
-    els.scanOverlay.classList.add("open");
-    if(typeof Html5Qrcode === "undefined"){
-      els.scanStatus.textContent = "Barcode scanning isn't available here — open this app at its Vercel link on your phone to use the camera scanner.";
-      return;
-    }
-    var formats = [
-      Html5QrcodeSupportedFormats.QR_CODE, Html5QrcodeSupportedFormats.EAN_13, Html5QrcodeSupportedFormats.EAN_8,
-      Html5QrcodeSupportedFormats.UPC_A, Html5QrcodeSupportedFormats.UPC_E, Html5QrcodeSupportedFormats.UPC_EAN_EXTENSION,
-      Html5QrcodeSupportedFormats.CODE_128, Html5QrcodeSupportedFormats.CODE_39
-    ];
-    html5QrScanner = new Html5Qrcode("scanRegion", { formatsToSupport: formats, verbose: false });
-    html5QrScanner.start(
-      { facingMode: "environment" },
-      {
-        fps: 10,
-        qrbox: function(viewfinderWidth, viewfinderHeight){
-          var edge = Math.floor(Math.min(viewfinderWidth, viewfinderHeight) * 0.75);
-          return { width: edge, height: Math.floor(edge * 0.6) };
-        }
-      },
-      onScanSuccess,
-      function(){}
-    ).then(function(){
-      els.scanStatus.textContent = "Camera on — hold the barcode steady inside the box.";
-    }).catch(function(err){
-      els.scanStatus.textContent = "Couldn't access the camera: " + (err && err.message ? err.message : err);
-    });
-  }
-  function closeScanner(){
-    els.scanOverlay.classList.remove("open");
-    if(html5QrScanner){
-      var s = html5QrScanner;
-      html5QrScanner = null;
-      s.stop().catch(function(){}).then(function(){ s.clear(); });
-    }
+  /* ---------- photo-based food lookup (Vercel-only: needs /api/photo-food, blocked by the artifact CSP) ---------- */
+  var photoTargetMember = null, photoTargetHabit = null;
+  function openPhotoCapture(memberId, habitId){
+    photoTargetMember = memberId; photoTargetHabit = habitId;
+    els.photoFoodInput.value = "";
+    els.photoFoodInput.click();
   }
   function rememberScannedFood(food){
     if(foodMatch(food.name)) return;
@@ -1702,47 +1654,40 @@
       schedulePublish();
     }
   }
-  function onScanSuccess(decodedText){
-    els.scanStatus.textContent = "Looking up " + decodedText + "…";
-    fetch("https://world.openfoodfacts.org/api/v2/product/" + encodeURIComponent(decodedText) + ".json")
-      .then(function(r){ return r.json(); })
-      .then(function(data){
-        if(!data || data.status !== 1 || !data.product){
-          els.scanStatus.textContent = "No product found for that barcode. Try again or enter it manually.";
-          return;
-        }
-        var p = data.product;
-        var n = p.nutriments || {};
-        var kcal100 = n["energy-kcal_100g"];
-        if(kcal100 == null && n["energy_100g"] != null) kcal100 = n["energy_100g"] / 4.184;
-        if(kcal100 == null){
-          els.scanStatus.textContent = "Found the product but it has no calorie data on Open Food Facts.";
-          return;
-        }
-        var name = (p.product_name || p.generic_name || decodedText).trim().slice(0, 60) || decodedText;
-        var food = {
-          name: name,
-          kcal100: Math.round(kcal100),
-          protein100: n["proteins_100g"] != null ? Math.round(n["proteins_100g"]) : 0,
-          carbs100: n["carbohydrates_100g"] != null ? Math.round(n["carbohydrates_100g"]) : 0,
-          serving: 100,
-          unit: "serving"
-        };
+  function onPhotoFoodSelected(file){
+    if(!file) return;
+    showToast("Reading the label…");
+    var reader = new FileReader();
+    reader.onload = function(){
+      var dataUrl = reader.result || "";
+      var comma = dataUrl.indexOf(",");
+      var base64 = comma !== -1 ? dataUrl.slice(comma + 1) : "";
+      if(!base64){ showToast("Couldn't read that photo."); return; }
+      fetch("/api/photo-food", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ imageBase64: base64, mediaType: file.type || "image/jpeg" })
+      }).then(function(r){
+        if(!r.ok) return r.json().catch(function(){ return {}; }).then(function(j){ throw new Error(j.error || ("HTTP " + r.status)); });
+        return r.json();
+      }).then(function(data){
+        if(!data.found){ showToast("Couldn't identify that food — try a clearer photo of the label."); return; }
+        var food = { name: data.name, kcal100: data.kcal100, protein100: data.protein100, carbs100: data.carbs100, serving: 100, unit: "serving" };
         rememberScannedFood(food);
-        closeScanner();
-        var form = document.querySelector('.food-form[data-member="' + scanTargetMember + '"][data-habit="' + scanTargetHabit + '"]');
+        var form = document.querySelector('.food-form[data-member="' + photoTargetMember + '"][data-habit="' + photoTargetHabit + '"]');
         if(form){
           var nameInput = form.querySelector('[data-role="ff-name"]');
           var amtInput = form.querySelector('[data-role="ff-amt"]');
-          nameInput.value = name;
+          nameInput.value = data.name;
           updateFoodPreview(form);
           amtInput.focus();
         }
-        showToast("Found: " + name);
-      })
-      .catch(function(){
-        els.scanStatus.textContent = "Lookup failed — check your connection and try again.";
+        showToast("Found: " + data.name);
+      }).catch(function(){
+        showToast("Photo lookup isn't available here — this only works on the Vercel deployment with an Anthropic API key configured.");
       });
+    };
+    reader.readAsDataURL(file);
   }
 
   var MOUNTAIN_TZ = "America/Denver";
@@ -2456,8 +2401,8 @@
         openNutrition(t.dataset.member);
         return;
       }
-      if(action === "scanbarcode"){
-        openScanner(t.dataset.member, t.dataset.habit);
+      if(action === "photofood"){
+        openPhotoCapture(t.dataset.member, t.dataset.habit);
         return;
       }
       if(action === "edittarget"){
@@ -2638,8 +2583,7 @@
   els.coachBtn.addEventListener("click", openCoach);
   els.coachClose.addEventListener("click", closeCoach);
   els.coachOverlay.addEventListener("click", function(e){ if(e.target === els.coachOverlay) closeCoach(); });
-  els.scanClose.addEventListener("click", closeScanner);
-  els.scanOverlay.addEventListener("click", function(e){ if(e.target === els.scanOverlay) closeScanner(); });
+  els.photoFoodInput.addEventListener("change", function(e){ onPhotoFoodSelected(e.target.files && e.target.files[0]); });
   els.pickerAddBtn.addEventListener("click", function(){
     var chosen = SUGGESTIONS.filter(function(s){ return pickerSelected.has(s.id); })
       .map(function(s){ return { id: s.id, label: s.label, icon: s.icon, kind: s.kind }; });
