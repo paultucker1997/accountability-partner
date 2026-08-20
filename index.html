@@ -333,6 +333,8 @@
   }
   .log-form button svg{ width: 13px; height: 13px; }
   .log-empty{ font-size: 11.5px; color: var(--ink-faint); margin: 0 0 8px; }
+  .sleep-log{ padding: 0 12px 12px; border-top: 1px solid var(--line); padding-top: 10px; }
+  .sleep-log input{ width: 100%; background: var(--surface-2); border: 1px solid var(--line); color: var(--ink); border-radius: 8px; padding: 8px 10px; font-size: 12.5px; }
 
   .heat-scroll{ overflow-x: auto; padding-bottom: 4px; margin: 0 -2px; }
   .heat-row{ display: flex; gap: 4px; padding: 2px; width: max-content; }
@@ -484,6 +486,10 @@
   .weight-form input{ background: var(--surface-2); border: 1px solid var(--line); color: var(--ink); border-radius: 8px; padding: 8px 10px; font-size: 12.5px; flex: 1; min-width: 0; }
   .weight-sex{ display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--ink-faint); flex-wrap: wrap; }
   .weight-sex .chip{ padding: 4px 10px; font-size: 11px; }
+  .goal-section{ margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); }
+  .goal-row{ display: flex; gap: 6px; margin-bottom: 8px; }
+  .goal-row input{ background: var(--surface-2); border: 1px solid var(--line); color: var(--ink); border-radius: 8px; padding: 8px 10px; font-size: 12.5px; flex: 1; min-width: 0; }
+  .goal-summary{ font-size: 12.5px; color: var(--ink-dim); margin: 0 0 10px; }
   .age-input{ width: 52px; background: var(--surface-2); border: 1px solid var(--line); color: var(--ink); border-radius: 6px; padding: 4px 6px; font-size: 11px; }
   .food-burn{ font-size: 11.5px; color: var(--ink-dim); margin: -2px 0 12px; font-family: "JetBrains Mono", monospace; }
   .lr-kcal{ color: var(--gold); font-family: "JetBrains Mono", monospace; font-size: 11px; font-weight: 700; }
@@ -1042,7 +1048,7 @@
 
   function currentHabits(){ return mode === "solo" ? soloState.habits : board.habits; }
   function currentMembers(){
-    if(mode === "solo") return [{ id: "me", name: soloState.name || null, days: soloState.days, solo: true, calorieTarget: soloState.calorieTarget, weightUnit: soloState.weightUnit, sex: soloState.sex, age: soloState.age }];
+    if(mode === "solo") return [{ id: "me", name: soloState.name || null, days: soloState.days, solo: true, calorieTarget: soloState.calorieTarget, weightUnit: soloState.weightUnit, sex: soloState.sex, age: soloState.age, goalWeight: soloState.goalWeight, goalDate: soloState.goalDate }];
     return board.members;
   }
 
@@ -1209,6 +1215,11 @@
       }
       html += '</div>';
     }
+    if(habit.id === "sleep7" && isMine){
+      var sleepRec = days[viewedDate] || {};
+      var sleepVal = typeof sleepRec.sleepHours === "number" ? sleepRec.sleepHours : "";
+      html += '<div class="sleep-log"><input type="text" inputmode="decimal" placeholder="Hours slept, e.g. 7.5" value="' + escHTML(sleepVal) + '" data-role="sleep-hours" data-member="' + escHTML(member.id) + '"></div>';
+    }
     html += '</div>';
     return html;
   }
@@ -1265,6 +1276,46 @@
   }
   function fmtShortDate(key){ return new Date(key + "T00:00:00").toLocaleDateString(undefined, heatFmt); }
 
+  function computeGoalPlan(member){
+    if(!member.goalWeight || !member.goalDate) return null;
+    var entry = currentWeightEntry(member.days);
+    if(!entry) return null;
+    var unit = member.weightUnit || "lb";
+    var currentLb = unit === "kg" ? entry.value / LB_TO_KG : entry.value;
+    var goalLb = unit === "kg" ? member.goalWeight / LB_TO_KG : member.goalWeight;
+    var deltaLb = currentLb - goalLb;
+    var todayD = new Date(REAL_TODAY + "T00:00:00");
+    var goalD = new Date(member.goalDate + "T00:00:00");
+    var days = Math.round((goalD - todayD) / 86400000);
+    if(Math.abs(deltaLb) < 0.1) return { reached: true };
+    if(days <= 0) return { pastDue: true };
+    var totalKcal = Math.abs(deltaLb) * 3500;
+    var dailyKcal = Math.round(totalKcal / days);
+    var losing = deltaLb > 0;
+    var currentTarget = member.calorieTarget || 2000;
+    var suggestedTarget = Math.round((losing ? currentTarget - dailyKcal : currentTarget + dailyKcal) / 10) * 10;
+    var weeklyLb = Math.abs(deltaLb) / (days / 7);
+    var minSafe = member.sex === "female" ? 1200 : 1500;
+    return {
+      days: days, deltaLb: deltaLb, losing: losing, weeklyLb: weeklyLb,
+      dailyKcal: dailyKcal, suggestedTarget: suggestedTarget,
+      tooAggressive: weeklyLb > 2, belowSafe: suggestedTarget < minSafe
+    };
+  }
+  function goalSummaryHTML(plan){
+    if(plan.reached) return '<p class="nutri-note">You’re already at your goal weight.</p>';
+    if(plan.pastDue) return '<p class="nutri-note">Pick a goal date in the future.</p>';
+    var verb = plan.losing ? "lose" : "gain";
+    var html = '<p class="goal-summary">' + Math.abs(plan.deltaLb).toFixed(1) + ' lb to ' + verb + ' in ' + plan.days + ' days (~' + plan.weeklyLb.toFixed(1) + ' lb/week).</p>' +
+      '<div class="food-stats">' +
+        '<div class="food-stat"><span class="fs-num">' + plan.suggestedTarget + '<span>kcal</span></span><span class="fs-label">Suggested Target</span></div>' +
+        '<div class="food-stat"><span class="fs-num">' + plan.dailyKcal + '<span>kcal</span></span><span class="fs-label">Daily ' + (plan.losing ? "Deficit" : "Surplus") + '</span></div>' +
+      '</div>';
+    if(plan.tooAggressive) html += '<p class="nutri-note">That’s more than 2 lb/week — consider a later goal date for a safer, more sustainable pace.</p>';
+    if(plan.belowSafe) html += '<p class="nutri-note">The suggested target is quite low. Consider covering part of the gap with exercise (burn ~' + plan.dailyKcal + ' kcal/day) instead of cutting food further, or extend your timeline.</p>';
+    return html;
+  }
+
   function weightSectionHTML(member, isMine){
     var unit = member.weightUnit || "lb";
     var viewedEntry = (member.days[viewedDate] && typeof member.days[viewedDate].weight === "number")
@@ -1294,6 +1345,14 @@
         '<button type="button" class="chip' + (member.sex === "male" ? " selected" : "") + '" data-action="setsex" data-member="' + escHTML(member.id) + '" data-value="male">Male</button>' +
         '<button type="button" class="chip' + (member.sex === "female" ? " selected" : "") + '" data-action="setsex" data-member="' + escHTML(member.id) + '" data-value="female">Female</button>' +
         '<input type="text" inputmode="numeric" placeholder="Age" class="age-input" value="' + (typeof member.age === "number" ? member.age : "") + '" data-role="age-input" data-member="' + escHTML(member.id) + '">' +
+      '</div>' +
+      '<div class="goal-section">' +
+        '<div class="chip-section-label">Weight Goal</div>' +
+        '<div class="goal-row">' +
+          '<input type="text" inputmode="decimal" placeholder="Goal weight (' + unit + ')" value="' + (member.goalWeight || "") + '" data-role="goal-weight" data-member="' + escHTML(member.id) + '">' +
+          '<input type="date" value="' + (member.goalDate || "") + '" data-role="goal-date" data-member="' + escHTML(member.id) + '">' +
+        '</div>' +
+        (function(){ var plan = computeGoalPlan(member); return plan ? goalSummaryHTML(plan) : '<p class="nutri-note">Set a goal weight and date for a suggested daily calorie target.</p>'; })() +
       '</div>';
     }
     html += '</div>';
@@ -1601,13 +1660,26 @@
       els.scanStatus.textContent = "Barcode scanning isn't available here — open this app at its Vercel link on your phone to use the camera scanner.";
       return;
     }
-    html5QrScanner = new Html5Qrcode("scanRegion");
+    var formats = [
+      Html5QrcodeSupportedFormats.QR_CODE, Html5QrcodeSupportedFormats.EAN_13, Html5QrcodeSupportedFormats.EAN_8,
+      Html5QrcodeSupportedFormats.UPC_A, Html5QrcodeSupportedFormats.UPC_E, Html5QrcodeSupportedFormats.UPC_EAN_EXTENSION,
+      Html5QrcodeSupportedFormats.CODE_128, Html5QrcodeSupportedFormats.CODE_39
+    ];
+    html5QrScanner = new Html5Qrcode("scanRegion", { formatsToSupport: formats, verbose: false });
     html5QrScanner.start(
       { facingMode: "environment" },
-      { fps: 10, qrbox: 220 },
+      {
+        fps: 10,
+        qrbox: function(viewfinderWidth, viewfinderHeight){
+          var edge = Math.floor(Math.min(viewfinderWidth, viewfinderHeight) * 0.75);
+          return { width: edge, height: Math.floor(edge * 0.6) };
+        }
+      },
       onScanSuccess,
       function(){}
-    ).catch(function(err){
+    ).then(function(){
+      els.scanStatus.textContent = "Camera on — hold the barcode steady inside the box.";
+    }).catch(function(err){
       els.scanStatus.textContent = "Couldn't access the camera: " + (err && err.message ? err.message : err);
     });
   }
@@ -2466,7 +2538,7 @@
   /* Weight and age auto-save: mutate state + re-render immediately (so calorie
      estimates update live as you type) with focus preserved, then persist after
      a short pause in typing — no save button, no per-keystroke network/publish. */
-  var weightSaveTimer = null, ageSaveTimer = null, nameSaveTimer = null;
+  var weightSaveTimer = null, ageSaveTimer = null, nameSaveTimer = null, sleepSaveTimer = null, goalSaveTimer = null;
   function persistMemberChange(){
     if(mode === "solo") saveSolo(soloState);
     else if(mode === "board") schedulePublish();
@@ -2487,11 +2559,45 @@
     if(immediate) persistMemberChange();
     else weightSaveTimer = setTimeout(persistMemberChange, 700);
   }
+  function saveSleepFrom(input){
+    var val = parseFloat(input.value);
+    var memberId = input.dataset.member;
+    var target = mode === "solo" ? soloState : findMember(memberId);
+    if(!target) return;
+    var rec = ensureDay(target.days, viewedDate);
+    if(val > 0){
+      rec.sleepHours = val;
+      rec.sleep7 = val >= 7;
+    } else {
+      delete rec.sleepHours;
+    }
+    renderPreserveFocus();
+    clearTimeout(sleepSaveTimer);
+    sleepSaveTimer = setTimeout(persistMemberChange, 700);
+  }
   document.body.addEventListener("input", function(e){
     var form = e.target.closest(".food-form");
     if(form) updateFoodPreview(form);
     if(e.target.matches && e.target.matches('[data-role="wt-value"]')){
       saveWeightFrom(e.target.closest(".weight-form"), false);
+    }
+    if(e.target.matches && e.target.matches('[data-role="sleep-hours"]')){
+      saveSleepFrom(e.target);
+    }
+    if(e.target.matches && e.target.matches('[data-role="goal-weight"], [data-role="goal-date"]')){
+      var goalMemberId = e.target.dataset.member;
+      var goalTarget = mode === "solo" ? soloState : findMember(goalMemberId);
+      if(goalTarget){
+        if(e.target.dataset.role === "goal-weight"){
+          var gw = parseFloat(e.target.value);
+          goalTarget.goalWeight = gw > 0 ? gw : null;
+        } else {
+          goalTarget.goalDate = e.target.value || null;
+        }
+        renderPreserveFocus();
+        clearTimeout(goalSaveTimer);
+        goalSaveTimer = setTimeout(persistMemberChange, 700);
+      }
     }
     if(e.target.matches && e.target.matches('[data-role="age-input"]')){
       var num = parseInt(e.target.value, 10);
