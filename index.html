@@ -1349,7 +1349,7 @@
   function foodMatch(name){
     var n = (name || "").trim().toLowerCase();
     if(!n) return null;
-    var all = COMMON_FOODS.concat(currentCustomFoods());
+    var all = currentCustomFoods().concat(COMMON_FOODS);
     for(var i = 0; i < all.length; i++){ if(all[i].name.toLowerCase() === n) return all[i]; }
     return null;
   }
@@ -1644,13 +1644,17 @@
     els.photoFoodInput.click();
   }
   function rememberScannedFood(food){
-    if(foodMatch(food.name)) return;
+    var n = food.name.toLowerCase();
     if(mode === "solo"){
-      soloState.customFoods.push(food);
+      var i = -1;
+      for(var j = 0; j < soloState.customFoods.length; j++){ if(soloState.customFoods[j].name.toLowerCase() === n){ i = j; break; } }
+      if(i !== -1) soloState.customFoods[i] = food; else soloState.customFoods.push(food);
       saveSolo(soloState);
     } else if(mode === "board"){
       board.customFoods = board.customFoods || [];
-      board.customFoods.push(food);
+      var k = -1;
+      for(var m = 0; m < board.customFoods.length; m++){ if(board.customFoods[m].name.toLowerCase() === n){ k = m; break; } }
+      if(k !== -1) board.customFoods[k] = food; else board.customFoods.push(food);
       schedulePublish();
     }
   }
